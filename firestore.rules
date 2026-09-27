@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) && isValidId(userId);
+
+      match /savedBooks/{bookId} {
+        allow read, write: if isOwner(userId) && isValidId(bookId);
+      }
+
+      match /readingHistory/{bookId} {
+        allow read, write: if isOwner(userId) && isValidId(bookId);
+      }
+
+      match /annotations/{annotationId} {
+        allow read, write: if isOwner(userId) && isValidId(annotationId);
+      }
+    }
+
+    match /books/{bookId}/sharedHighlights/{highlightId} {
+      // Any user can read the community highlights feed for a book
+      allow read: if isValidId(bookId) && isValidId(highlightId);
+
+      // Creating requires signing in and owning the userId
+      allow create: if isSignedIn() 
+                    && isValidId(bookId) 
+                    && isValidId(highlightId) 
+                    && request.resource.data.userId == request.auth.uid;
+
+      function isValidLikeToggle() {
+        let before = resource.data.likedBy;
+        let after = request.resource.data.likedBy;
+        let uid = request.auth.uid;
+        // Only the caller's own uid may be added or removed from likedBy,
+        // one at a time, and likesCount must always match likedBy.size().
+        return request.resource.data.likesCount == after.size()
+          && (
+            (after == before + [uid] && !(uid in before))
+            || (after == before.removeAll([uid]) && uid in before)
+          );
+      }
+
+      // Owner can update any field, or any signed in user can toggle their own like
+      allow update: if isSignedIn()
+                    && isValidId(bookId)
+                    && isValidId(highlightId)
+                    && (
+                      (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid) ||
+                      (
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'likedBy'])
+                        && isValidLikeToggle()
+                      )
+                    );
+
+      // Deleting requires being the owner
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

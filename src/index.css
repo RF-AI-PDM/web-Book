@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #0d0e12;
+    color: #e4e4e7;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .font-serif {
+    font-family: 'Newsreader', Georgia, Cambria, 'Times New Roman', Times, serif;
+  }
+
+  .font-newsreader {
+    font-family: 'Newsreader', Georgia, Cambria, serif;
+  }
+
+  .font-jakarta {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .font-merriweather {
+    font-family: 'Merriweather', Georgia, serif;
+  }
+
+  .font-literata {
+    font-family: 'Literata', Georgia, serif;
+  }
+
+  .font-mono-reader {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+}
+
+/* Reader Themes */
+.theme-dark {
+  background-color: #0d0e12;
+  color: #e4e4e7;
+}
+
+.theme-sepia {
+  background-color: #fbf0d9;
+  color: #2d261e;
+}
+
+.theme-light {
+  background-color: #fafafa;
+  color: #18181b;
+}
+
+.theme-cream {
+  background-color: #f5edd6;
+  color: #2b2319;
+}
+
+.theme-sage {
+  background-color: #15221c;
+  color: #e0ece5;
+}
+
+.theme-midnight {
+  background-color: #0a1128;
+  color: #e2e8f0;
+}
+
+/* Custom Text Highlight selection */
+::selection {
+  background-color: rgba(249, 115, 22, 0.35);
+  color: inherit;
+}

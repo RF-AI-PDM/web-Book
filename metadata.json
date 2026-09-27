@@ -1,0 +1,6 @@
+{
+  "name": "F15 Library - Web Book & Anotasi",
+  "description": "Aplikasi membaca buku digital ringkasan 15 menit, pelacak target membaca harian & mingguan, streak konsistensi, lencana prestasi, dan integrasi cloud.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
