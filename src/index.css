@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--app-bg, #0d0e12);
+    color: var(--app-text, #e4e4e7);
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .font-serif {
+    font-family: 'Newsreader', Georgia, Cambria, 'Times New Roman', Times, serif;
+  }
+
+  .font-newsreader {
+    font-family: 'Newsreader', Georgia, Cambria, serif;
+  }
+
+  .font-jakarta {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .font-merriweather {
+    font-family: 'Merriweather', Georgia, serif;
+  }
+
+  .font-literata {
+    font-family: 'Literata', Georgia, serif;
+  }
+
+  .font-mono-reader {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+}
+
+/* ── Global App Theme CSS Variables ── */
+:root {
+  --app-bg: #0d0e12;
+  --app-bg-secondary: #16171d;
+  --app-border: rgba(255,255,255,0.07);
+  --app-text: #e4e4e7;
+  --app-text-muted: #a1a1aa;
+  --app-navbar-bg: rgba(13,14,18,0.90);
+  --app-card-bg: #181924;
+  --app-transition: background-color 0.25s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Dark mode (default) */
+html.theme-dark,
+html.theme-midnight,
+html.theme-sage {
+  --app-bg: #0d0e12;
+  --app-bg-secondary: #16171d;
+  --app-border: rgba(255,255,255,0.07);
+  --app-text: #e4e4e7;
+  --app-text-muted: #a1a1aa;
+  --app-navbar-bg: rgba(13,14,18,0.90);
+  --app-card-bg: #181924;
+}
+
+/* Light mode */
+html.theme-light {
+  --app-bg: #f8f8f9;
+  --app-bg-secondary: #ffffff;
+  --app-border: rgba(0,0,0,0.08);
+  --app-text: #18181b;
+  --app-text-muted: #71717a;
+  --app-navbar-bg: rgba(248,248,249,0.92);
+  --app-card-bg: #ffffff;
+}
+
+/* Sepia mode */
+html.theme-sepia {
+  --app-bg: #f5edd6;
+  --app-bg-secondary: #fbf3df;
+  --app-border: rgba(0,0,0,0.10);
+  --app-text: #2d261e;
+  --app-text-muted: #7c6a54;
+  --app-navbar-bg: rgba(245,237,214,0.92);
+  --app-card-bg: #fbf3df;
+}
+
+/* Smooth transitions when switching theme */
+body,
+header,
+main,
+footer {
+  transition: var(--app-transition);
+}
+
+/* Reader Themes */
+.theme-dark     { background-color: #0d0e12; color: #e4e4e7; }
+.theme-sepia    { background-color: #fbf0d9; color: #2d261e; }
+.theme-light    { background-color: #fafafa; color: #18181b; }
+.theme-cream    { background-color: #f5edd6; color: #2b2319; }
+.theme-sage     { background-color: #15221c; color: #e0ece5; }
+.theme-midnight { background-color: #0a1128; color: #e2e8f0; }
+
+/* Custom Text Highlight selection */
+::selection {
+  background-color: rgba(249, 115, 22, 0.35);
+  color: inherit;
+}

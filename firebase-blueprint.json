@@ -1,0 +1,232 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth user ID"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name"
+        },
+        "completedSummariesCount": {
+          "type": "number",
+          "description": "Count of completed book summaries"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of user creation"
+        }
+      },
+      "required": ["userId", "email"]
+    },
+    "SavedBook": {
+      "title": "SavedBook",
+      "description": "A book saved by the user in their library",
+      "type": "object",
+      "properties": {
+        "bookId": {
+          "type": "string",
+          "description": "Unique identifier of the book"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the book"
+        },
+        "author": {
+          "type": "string",
+          "description": "Author of the book"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category or shelf of the book"
+        },
+        "coverUrl": {
+          "type": "string",
+          "description": "Cover image URL"
+        },
+        "progress": {
+          "type": "number",
+          "description": "Reading progress percentage (0 to 100)"
+        },
+        "currentChapterId": {
+          "type": "string",
+          "description": "Current active chapter ID"
+        },
+        "currentChapterTitle": {
+          "type": "string",
+          "description": "Current active chapter title"
+        },
+        "completed": {
+          "type": "boolean",
+          "description": "Whether the summary has been completed"
+        },
+        "savedAt": {
+          "type": "string",
+          "description": "Timestamp when the book was saved"
+        },
+        "lastReadAt": {
+          "type": "string",
+          "description": "Timestamp when the book was last read"
+        }
+      },
+      "required": ["bookId", "title", "author"]
+    },
+    "Annotation": {
+      "title": "Annotation",
+      "description": "User highlight or note made on a book summary",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique annotation ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID of the creator"
+        },
+        "bookId": {
+          "type": "string",
+          "description": "Book ID"
+        },
+        "bookTitle": {
+          "type": "string",
+          "description": "Book Title"
+        },
+        "chapterId": {
+          "type": "string",
+          "description": "Chapter ID"
+        },
+        "chapterTitle": {
+          "type": "string",
+          "description": "Chapter Title"
+        },
+        "selectedText": {
+          "type": "string",
+          "description": "Quoted text highlighted by user"
+        },
+        "color": {
+          "type": "string",
+          "description": "Highlight color code or name",
+          "enum": ["yellow", "green", "blue", "orange", "pink"]
+        },
+        "note": {
+          "type": "string",
+          "description": "User reflection or thought note"
+        },
+        "isShared": {
+          "type": "boolean",
+          "description": "Whether this annotation is shared to community feed (default: false)"
+        },
+        "isAnonymous": {
+          "type": "boolean",
+          "description": "Whether the user shared this as anonymous reader"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when note was created"
+        }
+      },
+      "required": ["id", "userId", "bookId", "selectedText"]
+    },
+    "SharedHighlight": {
+      "title": "SharedHighlight",
+      "description": "A public or community-shared quote or insight from a reader",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique highlight ID"
+        },
+        "bookId": {
+          "type": "string",
+          "description": "ID of the book"
+        },
+        "bookTitle": {
+          "type": "string",
+          "description": "Title of the book"
+        },
+        "chapterId": {
+          "type": "string",
+          "description": "Chapter ID"
+        },
+        "chapterTitle": {
+          "type": "string",
+          "description": "Chapter Title"
+        },
+        "selectedText": {
+          "type": "string",
+          "description": "Quoted text highlighted by the reader"
+        },
+        "note": {
+          "type": "string",
+          "description": "Reader's perspective or reflection insight"
+        },
+        "color": {
+          "type": "string",
+          "description": "Highlight color code"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Author user ID"
+        },
+        "userDisplayName": {
+          "type": "string",
+          "description": "Display name of the author"
+        },
+        "userPhotoURL": {
+          "type": "string",
+          "description": "Avatar URL of author"
+        },
+        "isAnonymous": {
+          "type": "boolean",
+          "description": "Whether to hide name and avatar"
+        },
+        "likesCount": {
+          "type": "number",
+          "description": "Number of upvotes or helpful marks"
+        },
+        "likedBy": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of user IDs who liked this quote"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO creation timestamp"
+        }
+      },
+      "required": ["id", "bookId", "selectedText", "userId", "likesCount"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile document"
+    },
+    "/users/{userId}/savedBooks/{bookId}": {
+      "schema": { "$ref": "#/entities/SavedBook" },
+      "description": "Books saved in user's cloud library"
+    },
+    "/users/{userId}/readingHistory/{bookId}": {
+      "schema": { "$ref": "#/entities/SavedBook" },
+      "description": "User reading history and progress synced across devices"
+    },
+    "/users/{userId}/annotations/{annotationId}": {
+      "schema": { "$ref": "#/entities/Annotation" },
+      "description": "User digital annotations and highlights"
+    },
+    "/books/{bookId}/sharedHighlights/{highlightId}": {
+      "schema": { "$ref": "#/entities/SharedHighlight" },
+      "description": "Shared community highlights and insights for this book"
+    }
+  }
+}
