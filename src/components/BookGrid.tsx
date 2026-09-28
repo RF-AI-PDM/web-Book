@@ -29,7 +29,7 @@ export const BookGrid: React.FC<BookGridProps> = ({
   const categories = ['all', 'Future & Innovation', 'Business & Leadership', 'Mind & Behavior', 'Mindfulness & Wisdom'];
 
   const filteredAndSortedBooks = useMemo(() => {
-    let result = books.filter(b => {
+    const result = books.filter(b => {
       const matchesCategory = selectedFilter === 'all' || b.category === selectedFilter;
       const q = searchQuery.toLowerCase().trim();
       if (!q) return matchesCategory;

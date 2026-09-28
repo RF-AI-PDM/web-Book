@@ -201,7 +201,7 @@ export const getStreakHistory = (
   // Calculate which dates are part of the active streak
   const streakActiveDates = new Set<string>();
   if (currentStreak > 0) {
-    let streakCursor = new Date(todayDate);
+    const streakCursor = new Date(todayDate);
     // If today is not met, streak starts yesterday
     if ((logs[todayStr] || 0) < targetMinutes) {
       streakCursor.setDate(streakCursor.getDate() - 1);

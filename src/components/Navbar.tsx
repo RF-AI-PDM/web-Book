@@ -55,7 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     isVip,
     isAdminMode 
   } = useAuth();
-  const { setIsSettingsOpen } = useTheme();
+  const { theme, setTheme, setIsSettingsOpen } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchSort, setSearchSort] = useState<BookSortOption>('recent');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -68,7 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     if (!searchQuery.trim()) return [];
 
     const q = searchQuery.toLowerCase().trim();
-    let res = allBooks.filter(
+    const res = allBooks.filter(
       b =>
         b.title.toLowerCase().includes(q) ||
         b.author.toLowerCase().includes(q) ||

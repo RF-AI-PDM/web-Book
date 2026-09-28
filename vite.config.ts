@@ -36,7 +36,7 @@ function geminiApiPlugin(): Plugin {
             const { validateMentorRequest } = await import('./src/server/validateMentorRequest.ts');
             const parsed = JSON.parse(body);
             const validation = validateMentorRequest(parsed);
-            if (!validation.ok) {
+            if (validation.ok === false) {
               res.statusCode = 400;
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify({ error: validation.error }));

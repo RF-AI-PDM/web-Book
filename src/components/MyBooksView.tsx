@@ -98,7 +98,7 @@ export const MyBooksView: React.FC<MyBooksViewProps> = ({
 
   // 1. FILTER & SORT SAVED BOOKS
   const filteredAndSortedSavedBooks = useMemo(() => {
-    let list = savedBooks.filter(saved => {
+    const list = savedBooks.filter(saved => {
       const q = searchQuery.toLowerCase().trim();
       if (!q) return true;
       return (
@@ -131,7 +131,7 @@ export const MyBooksView: React.FC<MyBooksViewProps> = ({
 
   // 2. FILTER & SORT READING HISTORY
   const filteredAndSortedHistory = useMemo(() => {
-    let list = readingHistory.filter(item => {
+    const list = readingHistory.filter(item => {
       const q = searchQuery.toLowerCase().trim();
       if (!q) return true;
       return (

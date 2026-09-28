@@ -26,7 +26,7 @@ app.post('/api/gemini/mentor', async (req, res) => {
   }
 
   const validation = validateMentorRequest(req.body);
-  if (!validation.ok) {
+  if (validation.ok === false) {
     res.status(400).json({ error: validation.error });
     return;
   }

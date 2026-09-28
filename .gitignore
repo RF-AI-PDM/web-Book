@@ -6,3 +6,9 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Firebase config (berisi API key — jangan upload ke publik)
+firebase-applet-config.json
+
+# npm lock (proyek pakai pnpm)
+package-lock.json
