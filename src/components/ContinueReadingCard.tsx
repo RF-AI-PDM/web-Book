@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, ArrowRight, BookOpen, Clock } from 'lucide-react';
+import { Play, Clock } from 'lucide-react';
 import { SavedBook, Book } from '../types';
 import { BookCover } from './BookCover';
 

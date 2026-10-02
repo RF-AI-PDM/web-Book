@@ -5,16 +5,9 @@ import {
   Plus, 
   Trash2, 
   Crown, 
-  Check, 
   X, 
-  Layers, 
-  Clock, 
   Eye, 
-  Sparkles,
-  ToggleLeft,
-  ToggleRight,
-  UploadCloud,
-  Settings
+  UploadCloud
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Book } from '../types';

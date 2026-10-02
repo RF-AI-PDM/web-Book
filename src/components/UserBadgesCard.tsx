@@ -15,11 +15,8 @@ import {
   Sparkles, 
   Check, 
   X, 
-  Info, 
   ChevronRight, 
-  Filter,
-  Star,
-  Clock
+  Star
 } from 'lucide-react';
 import { UserBadge } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -35,8 +32,7 @@ interface UserBadgesCardProps {
 }
 
 export const UserBadgesCard: React.FC<UserBadgesCardProps> = ({
-  className = '',
-  onExplore
+  className = ''
 }) => {
   const { readingHistory, annotations, goalProgress, readingStats } = useAuth();
 

@@ -4,7 +4,6 @@ import {
   initAuthListener, 
   signInWithGoogle, 
   logOut, 
-  getAccessToken,
   syncSavedBookToCloud, 
   removeSavedBookFromCloud, 
   fetchSavedBooksFromCloud, 
@@ -19,7 +18,6 @@ import {
   listenReadingHistory,
   publishSharedHighlightToCloud,
   unpublishSharedHighlightFromCloud,
-  fetchSharedHighlightsFromCloud,
   listenSharedHighlights,
   toggleLikeSharedHighlightInCloud,
   syncReadingGoalToCloud,
@@ -531,6 +529,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Real-time Cloud Sync & Auth Listener
@@ -686,6 +685,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubscribeAuth();
       unsubs.forEach(u => u());
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 

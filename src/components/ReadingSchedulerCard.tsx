@@ -8,18 +8,15 @@ import {
   CheckCircle2, 
   Send, 
   Volume2, 
-  Flame, 
   AlertCircle, 
   Sliders, 
-  Check, 
-  RefreshCw 
+  Check 
 } from 'lucide-react';
 import { ReadingReminderSchedule } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { 
   getReadingSchedule, 
   saveReadingSchedule, 
-  isNotificationSupported, 
   getNotificationPermission, 
   requestNotificationPermission, 
   sendNativePushNotification, 

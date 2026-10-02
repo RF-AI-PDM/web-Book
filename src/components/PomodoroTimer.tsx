@@ -5,9 +5,8 @@ import {
   RotateCcw, 
   Coffee, 
   Volume2, 
-  VolumeX, 
-  CheckCircle2, 
-  ChevronDown, 
+  VolumeX,
+  ChevronDown,
   ChevronUp, 
   Sparkles,
   Flame,
@@ -75,6 +74,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRunning, mode, focusDurationMinutes, breakDurationMinutes, soundEnabled]);
 
   const handleTimerComplete = () => {

@@ -39,9 +39,7 @@ function MainApp() {
     saveAnnotation, 
     goalProgress,
     allCatalogBooks,
-    customBooks,
-    isAdminMode,
-    isVip
+    customBooks
   } = useAuth();
 
   const [currentView, setCurrentView] = useState<'home' | 'collections' | 'my-books' | 'reader'>('home');

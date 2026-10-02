@@ -1,16 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { 
   Upload, 
-  FileText, 
   Check, 
   X, 
   AlertCircle, 
-  Sparkles, 
   BookOpen, 
   Clock, 
   Layers, 
-  Lock, 
-  Globe, 
   ArrowRight,
   Palette,
   Loader2,

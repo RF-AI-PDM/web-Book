@@ -16,15 +16,11 @@ import {
   MessageSquare, 
   X,
   Clock,
-  BookOpen,
   Palette,
-  Cloud,
   RefreshCw,
   MessageSquareQuote,
   Lock,
   Globe,
-  EyeOff,
-  ShieldCheck,
   Award,
   Flame,
   Target,
@@ -72,8 +68,6 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     getSharedHighlightsForBook,
     updateBookProgress,
     syncStatus,
-    syncNow,
-    readingGoal,
     goalProgress,
     recordReadingMinutes
   } = useAuth();
@@ -106,7 +100,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
   const [noteInput, setNoteInput] = useState<string>('');
   const [isNoteInputOpen, setIsNoteInputOpen] = useState(false);
-  const [selectedColor, setSelectedColor] = useState<'yellow' | 'green' | 'blue' | 'purple' | 'orange'>('yellow');
+  const [selectedColor] = useState<'yellow' | 'green' | 'blue' | 'purple' | 'orange'>('yellow');
 
   // Opt-in sharing toggle: PRIVATE BY DEFAULT
   const [isSharedOptIn, setIsSharedOptIn] = useState<boolean>(false);
@@ -161,6 +155,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         isMounted = false;
       };
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [book.id, currentChapter?.id, currentChapter?.content, user?.uid, dynamicChapterContent]);
 
   const activeParagraphs: string[] = (currentChapter && Array.isArray(currentChapter.content) && currentChapter.content.length > 0)
@@ -207,6 +202,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     const progress = Math.round(((currentChapterIndex + 1) / book.chapters.length) * 100);
     updateBookProgress(book, currentChapter.id, currentChapter.title, progress);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentChapterIndex, book.id]);
 
   // Handle Text Selection in Reader

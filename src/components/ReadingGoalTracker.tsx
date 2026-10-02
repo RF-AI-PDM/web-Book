@@ -2,19 +2,12 @@ import React, { useState } from 'react';
 import { 
   Target, 
   Flame, 
-  Calendar, 
   Clock, 
   CheckCircle2, 
   Edit3, 
   Plus, 
-  Award, 
-  TrendingUp, 
   Sparkles,
-  ChevronRight,
-  Info,
-  X,
-  Check,
-  RotateCcw
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getLocalDateString } from '../utils/readingGoalUtils';
@@ -25,16 +18,13 @@ interface ReadingGoalTrackerProps {
 }
 
 export const ReadingGoalTracker: React.FC<ReadingGoalTrackerProps> = ({
-  className = '',
-  onOpenReader
+  className = ''
 }) => {
   const { 
     readingGoal, 
     goalProgress, 
     setReadingGoalConfig, 
-    recordReadingMinutes, 
-    setDayReadingMinutes,
-    resetReadingGoalProgress 
+    recordReadingMinutes
   } = useAuth();
 
   const [activeMode, setActiveMode] = useState<'daily' | 'weekly'>(readingGoal.mode || 'daily');

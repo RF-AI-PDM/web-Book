@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sun, Moon, Monitor, Download, User, LogOut, Check, Copy } from 'lucide-react';
+import { X, Sun, Moon, Monitor, Download, LogOut, Check, Copy } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 

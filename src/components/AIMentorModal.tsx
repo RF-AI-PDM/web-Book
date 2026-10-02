@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, Brain, X, Send, ChevronDown, ChevronUp, Copy, Check, BookmarkPlus } from 'lucide-react';
-import { Book, Annotation } from '../types';
+import { Book } from '../types';
 import { useAuth } from '../context/AuthContext';
 
 interface AIMentorModalProps {

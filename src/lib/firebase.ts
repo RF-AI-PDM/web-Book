@@ -89,7 +89,6 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 // In-memory access token cache for Google Workspace integration
 let cachedAccessToken: string | null = null;
-let isSigningIn = false;
 
 export const SCOPES = [
   'https://www.googleapis.com/auth/documents',
@@ -117,7 +116,6 @@ export const initAuthListener = (
 
 export const signInWithGoogle = async (): Promise<{ user: User; accessToken: string | null } | null> => {
   try {
-    isSigningIn = true;
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     cachedAccessToken = credential?.accessToken || null;
@@ -125,8 +123,6 @@ export const signInWithGoogle = async (): Promise<{ user: User; accessToken: str
   } catch (error) {
     console.error('Sign-in error:', error);
     throw error;
-  } finally {
-    isSigningIn = false;
   }
 };
 
@@ -290,7 +286,6 @@ export async function unpublishSharedHighlightFromCloud(bookId: string, highligh
 }
 
 export async function fetchSharedHighlightsFromCloud(bookId: string): Promise<SharedHighlight[]> {
-  const path = `books/${bookId}/sharedHighlights`;
   try {
     const colRef = collection(db, 'books', bookId, 'sharedHighlights');
     const snapshot = await getDocs(colRef);
@@ -410,7 +405,6 @@ export async function syncSubscriptionToCloud(userId: string, subscription: Subs
 }
 
 export async function fetchSubscriptionFromCloud(userId: string): Promise<SubscriptionInfo | null> {
-  const path = `users/${userId}`;
   try {
     const docRef = doc(db, 'users', userId);
     const snap = await getDoc(docRef);
@@ -504,7 +498,6 @@ export async function deleteCustomBookFromCloud(userId: string, bookId: string):
 }
 
 export async function fetchCustomBooksFromCloud(userId: string): Promise<Book[]> {
-  const path = `users/${userId}/customBooks`;
   try {
     const colRef = collection(db, 'users', userId, 'customBooks');
     const snapshot = await getDocs(colRef);
@@ -600,7 +593,6 @@ export async function deleteCatalogBookFromCloud(bookId: string): Promise<void> 
 }
 
 export async function fetchCatalogBooksFromCloud(): Promise<Book[]> {
-  const path = `catalog`;
   try {
     const colRef = collection(db, 'catalog');
     const snapshot = await getDocs(colRef);

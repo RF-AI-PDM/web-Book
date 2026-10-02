@@ -6,12 +6,7 @@ import {
   Clock, 
   Sparkles, 
   CheckCircle2, 
-  ChevronRight, 
   Trophy, 
-  Zap, 
-  ShieldCheck, 
-  Info, 
-  Plus, 
   BookOpen, 
   Lock, 
   Check 
@@ -20,8 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   getStreakHistory, 
   getStreakMilestones, 
-  StreakDayHistory, 
-  StreakMilestone 
+  StreakDayHistory 
 } from '../utils/readingGoalUtils';
 
 interface ReadingStreakCardProps {

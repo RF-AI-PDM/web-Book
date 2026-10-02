@@ -1,4 +1,4 @@
-import { ReadingGoal, DayReadingLog } from '../types';
+import { ReadingGoal } from '../types';
 
 export const getLocalDateString = (d: Date = new Date()): string => {
   const year = d.getFullYear();

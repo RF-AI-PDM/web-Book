@@ -9,10 +9,7 @@ import {
   FileText, 
   Sparkles, 
   AlertCircle,
-  Clock,
-  ExternalLink,
   Share2,
-  CheckCircle2,
   X,
   Search,
   ArrowUpDown,
@@ -28,7 +25,7 @@ import {
   Crown
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Book, Annotation, SavedBook, BookSortOption } from '../types';
+import { Book, Annotation, BookSortOption } from '../types';
 import { BookCover } from './BookCover';
 import { ReadingGoalTracker } from './ReadingGoalTracker';
 import { ReadingStreakCard } from './ReadingStreakCard';
