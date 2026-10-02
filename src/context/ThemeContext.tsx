@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { ReaderFontSize, ReaderFontFamily, ReaderLineHeight, ReaderTheme } from '../types';
+import { getAppColorMode, isReaderTheme } from '../utils/themeUtils';
 
 interface ThemeContextType {
   theme: ReaderTheme;
@@ -20,7 +21,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<ReaderTheme>(() => {
-    return (localStorage.getItem('f15_theme') as ReaderTheme) || 'dark';
+    const savedTheme = localStorage.getItem('f15_theme');
+    return isReaderTheme(savedTheme) ? savedTheme : 'dark';
   });
 
   const [fontSize, setFontSizeState] = useState<ReaderFontSize>(() => {
@@ -62,6 +64,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const root = document.documentElement;
     root.classList.remove('theme-light', 'theme-sepia', 'theme-dark', 'theme-cream', 'theme-sage', 'theme-midnight');
     root.classList.add(`theme-${theme}`);
+    const appColorMode = getAppColorMode(theme);
+    root.dataset.appTheme = appColorMode;
+    root.style.colorScheme = appColorMode;
 
     if (theme === 'dark' || theme === 'midnight' || theme === 'sage') {
       root.classList.add('dark');

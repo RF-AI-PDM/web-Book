@@ -39,11 +39,18 @@
 :root {
   --app-bg: #0d0e12;
   --app-bg-secondary: #16171d;
+  --app-surface: #15161c;
+  --app-surface-raised: #1b1c24;
+  --app-surface-interactive: #27272a;
+  --app-surface-hover: #303036;
   --app-border: rgba(255,255,255,0.07);
+  --app-border-strong: rgba(255,255,255,0.14);
   --app-text: #e4e4e7;
   --app-text-muted: #a1a1aa;
+  --app-text-subtle: #71717a;
   --app-navbar-bg: rgba(13,14,18,0.90);
   --app-card-bg: #181924;
+  --app-shadow: 0 18px 50px rgba(0,0,0,0.28);
   --app-transition: background-color 0.25s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
@@ -53,33 +60,167 @@ html.theme-midnight,
 html.theme-sage {
   --app-bg: #0d0e12;
   --app-bg-secondary: #16171d;
+  --app-surface: #15161c;
+  --app-surface-raised: #1b1c24;
+  --app-surface-interactive: #27272a;
+  --app-surface-hover: #303036;
   --app-border: rgba(255,255,255,0.07);
+  --app-border-strong: rgba(255,255,255,0.14);
   --app-text: #e4e4e7;
   --app-text-muted: #a1a1aa;
+  --app-text-subtle: #71717a;
   --app-navbar-bg: rgba(13,14,18,0.90);
   --app-card-bg: #181924;
+  --app-shadow: 0 18px 50px rgba(0,0,0,0.28);
 }
 
 /* Light mode */
 html.theme-light {
-  --app-bg: #f8f8f9;
+  --app-bg: #f6f7f9;
   --app-bg-secondary: #ffffff;
-  --app-border: rgba(0,0,0,0.08);
-  --app-text: #18181b;
-  --app-text-muted: #71717a;
-  --app-navbar-bg: rgba(248,248,249,0.92);
+  --app-surface: #ffffff;
+  --app-surface-raised: #f8fafc;
+  --app-surface-interactive: #eef0f3;
+  --app-surface-hover: #e5e7eb;
+  --app-border: rgba(32,33,36,0.10);
+  --app-border-strong: rgba(32,33,36,0.18);
+  --app-text: #202124;
+  --app-text-muted: #5f6368;
+  --app-text-subtle: #7b8087;
+  --app-navbar-bg: rgba(246,247,249,0.92);
   --app-card-bg: #ffffff;
+  --app-shadow: 0 18px 46px rgba(31,41,55,0.10);
 }
 
 /* Sepia mode */
 html.theme-sepia {
   --app-bg: #f5edd6;
   --app-bg-secondary: #fbf3df;
+  --app-surface: #fff8e8;
+  --app-surface-raised: #f7ecd3;
+  --app-surface-interactive: #eadbbd;
+  --app-surface-hover: #dfccaa;
   --app-border: rgba(0,0,0,0.10);
+  --app-border-strong: rgba(67,52,33,0.20);
   --app-text: #2d261e;
   --app-text-muted: #7c6a54;
+  --app-text-subtle: #927e63;
   --app-navbar-bg: rgba(245,237,214,0.92);
   --app-card-bg: #fbf3df;
+  --app-shadow: 0 18px 46px rgba(74,55,30,0.10);
+}
+
+html.theme-cream {
+  --app-bg: #f5edd6;
+  --app-bg-secondary: #fbf5e5;
+  --app-surface: #fffaf0;
+  --app-surface-raised: #f6ead0;
+  --app-surface-interactive: #eadbbd;
+  --app-surface-hover: #dfccaa;
+  --app-border: rgba(67,52,33,0.12);
+  --app-border-strong: rgba(67,52,33,0.20);
+  --app-text: #2b2319;
+  --app-text-muted: #6f604c;
+  --app-text-subtle: #8b7960;
+  --app-navbar-bg: rgba(245,237,214,0.92);
+  --app-card-bg: #fffaf0;
+  --app-shadow: 0 18px 46px rgba(74,55,30,0.10);
+}
+
+/*
+ * Compatibility layer for legacy components that still use dark Tailwind
+ * utilities. The semantic tokens keep every existing surface readable while
+ * components migrate to token classes incrementally.
+ */
+html[data-app-theme='light'] :where(.text-zinc-100, .text-zinc-200, .text-zinc-300) {
+  color: var(--app-text);
+}
+
+html[data-app-theme='light'] :where(.text-zinc-400, .text-stone-400) {
+  color: var(--app-text-muted);
+}
+
+html[data-app-theme='light'] :where(.text-zinc-500, .text-zinc-600, .text-stone-500, .text-stone-600) {
+  color: var(--app-text-subtle);
+}
+
+html[data-app-theme='light'] :where(
+  .bg-stone-950,
+  .bg-stone-900,
+  .bg-stone-900\/90,
+  .bg-stone-900\/80,
+  .bg-stone-900\/70,
+  .bg-stone-900\/60,
+  .bg-\[\#0e0f14\],
+  .bg-\[\#121319\],
+  .bg-\[\#14151b\],
+  .bg-\[\#14151c\],
+  .bg-\[\#15161c\],
+  .bg-\[\#16171d\]
+) {
+  background-color: var(--app-surface);
+}
+
+html[data-app-theme='light'] :where(
+  .bg-stone-800,
+  .bg-stone-800\/80,
+  .bg-stone-800\/70,
+  .bg-stone-800\/60,
+  .bg-\[\#171822\],
+  .bg-\[\#181922\],
+  .bg-\[\#181a23\],
+  .bg-\[\#191a23\],
+  .bg-\[\#1a1c29\]
+) {
+  background-color: var(--app-surface-interactive);
+}
+
+html[data-app-theme='light'] :where(
+  .hover\:bg-stone-800:hover,
+  .hover\:bg-stone-800\/70:hover,
+  .hover\:bg-stone-800\/60:hover,
+  .hover\:bg-stone-700:hover,
+  .hover\:bg-\[\#181922\]:hover,
+  .hover\:bg-\[\#181a23\]:hover,
+  .hover\:bg-\[\#191a23\]:hover
+) {
+  background-color: var(--app-surface-hover);
+}
+
+html[data-app-theme='light'] :where(
+  .border-stone-900,
+  .border-stone-800,
+  .border-stone-800\/80,
+  .border-stone-800\/60,
+  .border-zinc-800
+) {
+  border-color: var(--app-border);
+}
+
+html[data-app-theme='light'] :where(
+  .border-stone-700,
+  .border-stone-700\/80,
+  .border-stone-700\/60,
+  .border-zinc-700
+) {
+  border-color: var(--app-border-strong);
+}
+
+html[data-app-theme='light'] :where(input, textarea, select) {
+  color: var(--app-text);
+  caret-color: #ea580c;
+}
+
+html[data-app-theme='light'] :where(input, textarea)::placeholder {
+  color: var(--app-text-subtle);
+}
+
+html[data-app-theme='light'] :where(.shadow-lg, .shadow-xl, .shadow-2xl) {
+  --tw-shadow-color: rgba(31, 41, 55, 0.12);
+}
+
+html[data-app-theme='light'] .selection\:text-orange-200::selection {
+  color: #7c2d12;
 }
 
 /* Smooth transitions when switching theme */
@@ -88,6 +229,15 @@ header,
 main,
 footer {
   transition: var(--app-transition);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body,
+  header,
+  main,
+  footer {
+    transition: none;
+  }
 }
 
 /* Reader Themes */

@@ -1,6 +1,21 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      (() => {
+        try {
+          const theme = localStorage.getItem('f15_theme') || 'dark';
+          const lightThemes = ['light', 'sepia', 'cream'];
+          const mode = lightThemes.includes(theme) ? 'light' : 'dark';
+          document.documentElement.dataset.appTheme = mode;
+          document.documentElement.classList.add(`theme-${theme}`);
+          document.documentElement.style.colorScheme = mode;
+        } catch {
+          document.documentElement.dataset.appTheme = 'dark';
+          document.documentElement.classList.add('theme-dark');
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Evolusi Book - Baca. Tumbuh. Berevolusi.</title>
@@ -18,4 +33,3 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
