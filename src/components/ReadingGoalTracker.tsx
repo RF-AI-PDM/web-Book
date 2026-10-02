@@ -236,7 +236,7 @@ export const ReadingGoalTracker: React.FC<ReadingGoalTrackerProps> = ({
                 </p>
               ) : (
                 <p>
-                  Setiap ringkasan di F15 Library dirancang tuntas dalam <strong>15 menit</strong>. Cukup selesaikan satu ringkasan untuk melampaui target harianmu!
+                  Baca koleksi selama <strong>15 menit</strong> untuk mencapai target harianmu. Kamu bisa melanjutkan buku kapan saja.
                 </p>
               )}
             </div>

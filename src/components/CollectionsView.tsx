@@ -175,7 +175,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                     </p>
                   </div>
                   <div className="mt-4 pt-2.5 border-t border-stone-800 flex items-center justify-between text-xs text-zinc-500">
-                    <span>{book.readTimeMinutes} menit</span>
+                    <span>{book.sourceUrl ? book.fileType?.slice(1).toUpperCase() : `${book.readTimeMinutes} menit`}</span>
                     <span className="text-orange-400 font-medium">Baca →</span>
                   </div>
                 </div>

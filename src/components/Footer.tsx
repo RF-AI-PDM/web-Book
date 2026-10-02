@@ -20,7 +20,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               </span>
             </div>
             <p className="text-[11px] text-zinc-500 max-w-sm">
-              Ringkasan buku digital terlaris tuntas 15 menit dengan fitur anotasi interaktif dan sinkronisasi cloud perpustakaan pribadi.
+              Baca koleksi buku PDF dan EPUB lengkap dengan anotasi interaktif dan sinkronisasi cloud perpustakaan pribadi.
             </p>
           </div>
 

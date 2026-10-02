@@ -49,13 +49,11 @@ import {
   SubscriptionInfo,
   SubscriptionTier
 } from '../types';
-import { BOOKS_DATA } from '../data/books';
-import { INITIAL_COMMUNITY_HIGHLIGHTS } from '../data/mockCommunityHighlights';
+import { BOOKS_DATA, LEGACY_SAMPLE_BOOK_IDS } from '../data/books';
 import { 
   computeGoalProgress, 
   GoalProgressSummary, 
-  getLocalDateString, 
-  INITIAL_DEMO_LOGS 
+  getLocalDateString
 } from '../utils/readingGoalUtils';
 
 interface AuthContextType {
@@ -338,7 +336,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [savedBooks, setSavedBooks] = useState<SavedBook[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_SAVED);
-      return saved ? JSON.parse(saved) : [];
+      return saved ? (JSON.parse(saved) as SavedBook[]).filter(b => !LEGACY_SAMPLE_BOOK_IDS.has(b.bookId)) : [];
     } catch {
       return [];
     }
@@ -358,61 +356,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem(LOCAL_STORAGE_COMMUNITY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed.filter((item: SharedHighlight) => !item.id.startsWith('comm-'));
       }
-      return INITIAL_COMMUNITY_HIGHLIGHTS;
+      return [];
     } catch {
-      return INITIAL_COMMUNITY_HIGHLIGHTS;
+      return [];
     }
   });
 
   const [readingHistory, setReadingHistory] = useState<SavedBook[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_HISTORY);
-      if (saved) return JSON.parse(saved);
-      // Pre-seed demo history
-      const initialBook = BOOKS_DATA[0]; // Competing in The Age of AI
-      const secondBook = BOOKS_DATA.find(b => b.id === 'ai-superpowers') || BOOKS_DATA[1];
-      const thirdBook = BOOKS_DATA.find(b => b.id === 'life-3-0') || BOOKS_DATA[2];
-
-      return [
-        {
-          bookId: initialBook.id,
-          title: initialBook.title,
-          author: initialBook.author,
-          category: initialBook.category,
-          progress: 10,
-          currentChapterId: initialBook.chapters[0].id,
-          currentChapterTitle: initialBook.chapters[0].title,
-          completed: false,
-          savedAt: new Date().toISOString(),
-          lastReadAt: new Date().toISOString()
-        },
-        {
-          bookId: secondBook.id,
-          title: secondBook.title,
-          author: secondBook.author,
-          category: secondBook.category,
-          progress: 9,
-          currentChapterId: secondBook.chapters[0].id,
-          currentChapterTitle: secondBook.chapters[0].title,
-          completed: false,
-          savedAt: new Date().toISOString(),
-          lastReadAt: new Date(Date.now() - 3600000).toISOString()
-        },
-        {
-          bookId: thirdBook.id,
-          title: thirdBook.title,
-          author: thirdBook.author,
-          category: thirdBook.category,
-          progress: 9,
-          currentChapterId: thirdBook.chapters[0].id,
-          currentChapterTitle: thirdBook.chapters[0].title,
-          completed: false,
-          savedAt: new Date().toISOString(),
-          lastReadAt: new Date(Date.now() - 7200000).toISOString()
-        }
-      ];
+      if (saved) return (JSON.parse(saved) as SavedBook[]).filter(b => !LEGACY_SAMPLE_BOOK_IDS.has(b.bookId));
+      return [];
     } catch {
       return [];
     }
@@ -421,9 +377,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [completedCount, setCompletedCount] = useState<number>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_STATS);
-      return saved ? parseInt(saved, 10) : 2;
+      return saved ? parseInt(saved, 10) : 0;
     } catch {
-      return 2;
+      return 0;
     }
   });
 
@@ -478,9 +434,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_DAILY_LOGS);
       if (saved) return JSON.parse(saved);
-      return INITIAL_DEMO_LOGS;
+      return {};
     } catch {
-      return INITIAL_DEMO_LOGS;
+      return {};
     }
   });
 
@@ -613,7 +569,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // Merge Saved Books
             if (cloudBooks.length > 0) {
-              setSavedBooks(cloudBooks);
+              setSavedBooks(cloudBooks.filter(b => !LEGACY_SAMPLE_BOOK_IDS.has(b.bookId)));
             } else if (savedBooks.length > 0) {
               for (const b of savedBooks) {
                 await syncSavedBookToCloud(authUser.uid, b);
@@ -631,7 +587,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // Merge Reading History / Progress
             if (cloudHist.length > 0) {
-              setReadingHistory(cloudHist);
+              setReadingHistory(cloudHist.filter(b => !LEGACY_SAMPLE_BOOK_IDS.has(b.bookId)));
             } else if (readingHistory.length > 0) {
               for (const h of readingHistory) {
                 await syncReadingHistoryToCloud(authUser.uid, h);
@@ -684,7 +640,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // Attach real-time listeners for live cross-device updates
             const unsubBooks = listenSavedBooks(authUser.uid, (books) => {
-              setSavedBooks(books || []);
+              setSavedBooks((books || []).filter(b => !LEGACY_SAMPLE_BOOK_IDS.has(b.bookId)));
             });
 
             const unsubAnn = listenAnnotations(authUser.uid, (anns) => {
@@ -692,7 +648,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
 
             const unsubHist = listenReadingHistory(authUser.uid, (hist) => {
-              setReadingHistory(hist || []);
+              setReadingHistory((hist || []).filter(b => !LEGACY_SAMPLE_BOOK_IDS.has(b.bookId)));
             });
 
             // Real-time subscription listener — catches payment webhooks or admin changes
@@ -762,9 +718,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchDailyReadingLogsFromCloud(currentUser.uid)
       ]);
 
-      setSavedBooks(cloudBooks);
+      setSavedBooks(cloudBooks.filter(b => !LEGACY_SAMPLE_BOOK_IDS.has(b.bookId)));
       setAnnotations(cloudAnn);
-      setReadingHistory(cloudHist);
+      setReadingHistory(cloudHist.filter(b => !LEGACY_SAMPLE_BOOK_IDS.has(b.bookId)));
       if (cloudGoal) setReadingGoal(cloudGoal);
       if (cloudLogs && Object.keys(cloudLogs).length > 0) setDailyReadingLogs(cloudLogs);
 

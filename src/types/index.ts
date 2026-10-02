@@ -13,6 +13,7 @@ export interface DocumentAsset {
   mediaType: string;
   fileName?: string;
   sourcePath?: string;
+  sourceUrl?: string;
   width?: number;
   height?: number;
   byteSize: number;

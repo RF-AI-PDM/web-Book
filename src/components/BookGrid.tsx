@@ -3,6 +3,7 @@ import { Clock, ArrowRight, Bookmark, BookmarkCheck, Search, ArrowUpDown, X } fr
 import { Book, BookSortOption } from '../types';
 import { BookCover } from './BookCover';
 import { useAuth } from '../context/AuthContext';
+import { CATEGORIES } from '../data/books';
 
 interface BookGridProps {
   title: string;
@@ -26,7 +27,7 @@ export const BookGrid: React.FC<BookGridProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<BookSortOption>('recent');
 
-  const categories = ['all', 'Future & Innovation', 'Business & Leadership', 'Mind & Behavior', 'Mindfulness & Wisdom'];
+  const categories = CATEGORIES.map(category => category.id);
 
   const filteredAndSortedBooks = useMemo(() => {
     const result = books.filter(b => {
@@ -207,7 +208,7 @@ export const BookGrid: React.FC<BookGridProps> = ({
                 <div className="mt-4 pt-3 border-t border-stone-800/80 flex items-center justify-between text-[11px] text-zinc-400">
                   <span className="flex items-center gap-1 font-mono">
                     <Clock size={12} className="text-zinc-500" />
-                    {book.readTimeMinutes} mnt
+                    {book.sourceUrl ? book.fileType?.slice(1).toUpperCase() : `${book.readTimeMinutes} mnt`}
                   </span>
 
                   <button

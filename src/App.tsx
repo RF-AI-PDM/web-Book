@@ -22,6 +22,7 @@ const SubscriptionModal = lazy(() => import('./components/SubscriptionModal').th
 const UploadBookModal = lazy(() => import('./components/UploadBookModal').then(m => ({ default: m.UploadBookModal })));
 const AdminBookManagerModal = lazy(() => import('./components/AdminBookManagerModal').then(m => ({ default: m.AdminBookManagerModal })));
 import { BOOKS_DATA } from './data/books';
+import { loadCatalogBook } from './data/loadCatalogBook';
 import { Book, Annotation } from './types';
 import { 
   getReadingSchedule, 
@@ -46,6 +47,10 @@ function MainApp() {
   const [currentView, setCurrentView] = useState<'home' | 'collections' | 'my-books' | 'reader'>('home');
   const [activeBook, setActiveBook] = useState<Book | null>(null);
   const [activeChapterId, setActiveChapterId] = useState<string | undefined>(undefined);
+  const [openingBookId, setOpeningBookId] = useState<string | null>(null);
+  const [openError, setOpenError] = useState<string | null>(null);
+  const [openingSource, setOpeningSource] = useState<{ url: string; fileType?: string } | null>(null);
+  const openingRequest = React.useRef(0);
 
   // Subscription Modal state
   const [subscriptionModalState, setSubscriptionModalState] = useState<{
@@ -123,11 +128,25 @@ function MainApp() {
   }>({ isOpen: false, book: null });
 
   // Handle book selection to open Reader
-  const handleSelectBook = (book: Book, chapterId?: string) => {
-    setActiveBook(book);
-    setActiveChapterId(chapterId);
-    setCurrentView('reader');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const handleSelectBook = async (book: Book, chapterId?: string) => {
+    const requestId = ++openingRequest.current;
+    setOpeningBookId(book.id);
+    setOpeningSource(book.sourceUrl ? { url: book.sourceUrl, fileType: book.fileType } : null);
+    setOpenError(null);
+    try {
+      const readableBook = await loadCatalogBook(book);
+      if (requestId !== openingRequest.current) return;
+      setActiveBook(readableBook);
+      setActiveChapterId(chapterId);
+      setCurrentView('reader');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+      if (requestId === openingRequest.current) {
+        setOpenError(error instanceof Error ? error.message : 'Dokumen gagal dibuka.');
+      }
+    } finally {
+      if (requestId === openingRequest.current) setOpeningBookId(null);
+    }
   };
 
   // Continue reading item (latest read from history)
@@ -136,8 +155,7 @@ function MainApp() {
     ? (allCatalogBooks.find(b => b.id === continueReadingItem.bookId) || customBooks.find(b => b.id === continueReadingItem.bookId))
     : undefined;
 
-  // Book of the day: 48 Laws of Power
-  const bookOfDay = allCatalogBooks.find(b => b.id === '48-laws-of-power') || allCatalogBooks[0] || BOOKS_DATA[0];
+  const bookOfDay = allCatalogBooks[0] || BOOKS_DATA[0];
 
   // Recommendations for carousel
   const recommendedBooks = allCatalogBooks.filter(b => b.id !== bookOfDay.id).slice(0, 7);
@@ -186,6 +204,17 @@ function MainApp() {
 
       {/* Main Content Areas */}
       <main className="flex-1">
+        {(openingBookId || openError) && (
+          <div role="status" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] rounded-xl border border-stone-700 bg-stone-900 p-4 text-sm text-zinc-100 shadow-2xl">
+            {openingBookId ? 'Memuat isi dokumen. Buku besar mungkin memerlukan beberapa saat…' : openError}
+            {openingSource && (
+              <a href={openingSource.url} target={openingSource.fileType === '.pdf' ? '_blank' : undefined} rel="noopener noreferrer" download={openingSource.fileType === '.epub' ? true : undefined} className="ml-3 text-orange-400 underline">
+                {openingSource.fileType === '.pdf' ? 'Buka PDF asli' : 'Unduh EPUB asli'}
+              </a>
+            )}
+            {openError && <button className="ml-3 text-orange-400 underline" onClick={() => setOpenError(null)}>Tutup</button>}
+          </div>
+        )}
         {/* VIEW 1: HOME (BERANDA) */}
         {currentView === 'home' && (
           <div>
@@ -215,18 +244,18 @@ function MainApp() {
                 onRead={handleSelectBook}
               />
 
-              {/* Karena bacaan kamu belakangan ini (Carousel) */}
+              {/* Pilihan katalog (Carousel) */}
               <BookCarousel
-                title="Karena bacaan kamu belakangan ini"
-                subtitle="Rekomendasi berdasarkan topik kecerdasan buatan, ekonomi masa depan, dan kepemimpinan"
+                title="Pilihan dari koleksi"
+                subtitle="Buku lain yang tersedia dalam format PDF dan EPUB"
                 books={recommendedBooks}
                 onSelectBook={handleSelectBook}
               />
 
-              {/* Buku yang mungkin terlewat (Grid) */}
+              {/* Semua buku dalam katalog */}
               <BookGrid
-                title="Buku yang mungkin terlewat"
-                subtitle="Koleksi buku-buku berbobot yang mengubah cara pandang jutaan pembaca di dunia"
+                title="Semua buku"
+                subtitle="Jelajahi lima dokumen asli yang tersedia di perpustakaan"
                 books={allCatalogBooks}
                 onSelectBook={handleSelectBook}
                 onViewAll={() => setCurrentView('collections')}

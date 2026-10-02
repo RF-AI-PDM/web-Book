@@ -98,7 +98,7 @@ export const BookCarousel: React.FC<BookCarouselProps> = ({
             <div className="mt-4 pt-3 border-t border-stone-800/80 flex items-center justify-between text-xs text-zinc-400">
               <span className="flex items-center gap-1">
                 <Clock size={12} className="text-zinc-500" />
-                {book.readTimeMinutes} menit baca
+                {book.sourceUrl ? book.fileType?.slice(1).toUpperCase() : `${book.readTimeMinutes} menit baca`}
               </span>
               <span className="text-orange-400 text-xs font-medium group-hover:translate-x-0.5 transition-transform">
                 Baca →

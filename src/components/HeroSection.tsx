@@ -16,9 +16,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   featuredBooks,
   onSelectBook
 }) => {
-  const leftBook = featuredBooks.find(b => b.id === 'the-bomber-mafia') || featuredBooks[6];
-  const centerBook = featuredBooks.find(b => b.id === 'the-new-ceo') || featuredBooks[7];
-  const rightBook = featuredBooks.find(b => b.id === '48-laws-of-power') || featuredBooks[1];
+  const leftBook = featuredBooks[1];
+  const centerBook = featuredBooks[0];
+  const rightBook = featuredBooks[2];
 
   return (
     <section className="relative overflow-hidden pt-8 pb-14 sm:py-16 border-b border-stone-800/60">
@@ -34,8 +34,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </div>
 
           <h1 className="font-serif text-3xl sm:text-5xl font-bold tracking-tight text-zinc-100 leading-[1.15]">
-            Ringkasan buku terlaris, <br className="hidden sm:inline" />
-            tuntas dalam <span className="text-orange-500 italic">15 menit</span>.
+            Baca buku digital <br className="hidden sm:inline" />
+            langsung dari <span className="text-orange-500 italic">koleksi nyata</span>.
           </h1>
 
           <p className="text-zinc-400 text-base sm:text-lg leading-relaxed max-w-xl">
@@ -66,7 +66,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           {/* Footnote */}
           <div className="flex items-center gap-2 text-xs text-zinc-500 pt-1">
             <CheckCircle2 size={14} className="text-emerald-500" />
-            <span>3.000+ buku terlaris. Gratis, selamanya.</span>
+            <span>{featuredBooks.length} buku PDF dan EPUB tersedia.</span>
           </div>
         </div>
 

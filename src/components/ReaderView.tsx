@@ -30,7 +30,8 @@ import {
   Target,
   CheckCircle2,
   Timer,
-  Crown
+  Crown,
+  ExternalLink
 } from 'lucide-react';
 import { Book, Chapter, Annotation } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -40,6 +41,7 @@ import { BookCover } from './BookCover';
 import { ReaderCustomizerModal } from './ReaderCustomizerModal';
 import { SharedHighlightsFeed } from './SharedHighlightsFeed';
 import { PomodoroTimer } from './PomodoroTimer';
+import { getChapterBlocks } from '../utils/documentContent';
 
 interface ReaderViewProps {
   book: Book;
@@ -119,6 +121,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const [showGoalPopover, setShowGoalPopover] = useState<boolean>(false);
   const [celebrationBanner, setCelebrationBanner] = useState<boolean>(false);
   const [isPomodoroOpen, setIsPomodoroOpen] = useState<boolean>(true);
+  const [isOriginalPdfOpen, setIsOriginalPdfOpen] = useState(false);
 
   const readerContainerRef = useRef<HTMLDivElement>(null);
 
@@ -163,6 +166,10 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const activeParagraphs: string[] = (currentChapter && Array.isArray(currentChapter.content) && currentChapter.content.length > 0)
     ? currentChapter.content
     : (currentChapter && dynamicChapterContent[currentChapter.id]) || [];
+  const activeBlocks = currentChapter?.blocks?.length
+    ? getChapterBlocks(currentChapter)
+    : activeParagraphs.map((text, index) => ({ id: `${currentChapter?.id || 'chapter'}-paragraph-${index}`, type: 'paragraph' as const, text }));
+  const assetUrls = new Map((book.assets || []).map(asset => [asset.id, asset.sourceUrl]));
 
   // Filter annotations for this book and current chapter
   const bookAnnotations = annotations.filter(a => a.bookId === book.id);
@@ -370,6 +377,19 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
           {/* Action Tools */}
           <div className="flex items-center gap-1">
+            {book.sourceUrl && (
+              <a
+                href={book.sourceUrl}
+                target={book.fileType === '.pdf' ? '_blank' : undefined}
+                rel="noopener noreferrer"
+                download={book.fileType === '.epub' ? `${book.title}.epub` : undefined}
+                className="p-2 rounded-lg opacity-75 hover:opacity-100 hover:bg-black/10"
+                title={book.fileType === '.pdf' ? 'Buka PDF asli' : 'Unduh EPUB asli'}
+                aria-label={book.fileType === '.pdf' ? 'Buka PDF asli' : 'Unduh EPUB asli'}
+              >
+                <ExternalLink size={18} />
+              </a>
+            )}
             {/* Target Membaca Harian Badge */}
             <div className="relative">
               <button
@@ -669,7 +689,27 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           <div className="flex justify-center pt-4">
             <BookCover book={book} size="md" shadow={true} />
           </div>
+
+          {book.fileType === '.pdf' && book.sourceUrl && (
+            <button
+              onClick={() => setIsOriginalPdfOpen(open => !open)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-orange-500/30 bg-orange-500/10 text-xs font-semibold text-orange-500 hover:bg-orange-500/20 transition-colors cursor-pointer"
+            >
+              <ExternalLink size={14} />
+              {isOriginalPdfOpen ? 'Sembunyikan halaman PDF asli' : 'Tampilkan halaman PDF asli beserta gambar'}
+            </button>
+          )}
         </div>
+
+        {isOriginalPdfOpen && book.sourceUrl && (
+          <section className="mb-10 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
+            <iframe
+              title={`PDF asli ${book.title}`}
+              src={`${book.sourceUrl}#view=FitH`}
+              className="h-[72vh] min-h-[34rem] w-full"
+            />
+          </section>
+        )}
 
         {/* Active Chapter Heading */}
         <div className="mb-8">
@@ -754,12 +794,28 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
                     Memuat isi bab dari cloud storage...
                   </div>
                 </div>
-              ) : activeParagraphs.length === 0 ? (
+              ) : activeBlocks.length === 0 ? (
                 <div className="py-12 text-center text-zinc-500 italic">
                   (Tidak ada teks yang dapat dimuat untuk bab ini).
                 </div>
               ) : (
-                activeParagraphs.map((paragraph, pIdx) => {
+                activeBlocks.map((block, pIdx) => {
+                  if (block.type === 'image') {
+                    const sourceUrl = assetUrls.get(block.assetId);
+                    if (!sourceUrl) return null;
+                    return (
+                      <figure key={block.id} className="my-8 overflow-hidden rounded-2xl border border-black/10 bg-black/5 p-2">
+                        <img src={sourceUrl} alt={block.alt} className="mx-auto max-h-[34rem] w-auto max-w-full rounded-xl object-contain" />
+                        {(block.caption || block.alt) && <figcaption className="px-2 pt-2 text-center text-xs opacity-65">{block.caption || block.alt}</figcaption>}
+                      </figure>
+                    );
+                  }
+
+                  const paragraph = block.type === 'paragraph' ? block.text :
+                    block.type === 'heading' ? block.text :
+                    block.type === 'quote' ? block.text :
+                    block.type === 'list' ? block.items.join(' · ') : '';
+                  if (!paragraph) return null;
                   let renderedContent: React.ReactNode = paragraph;
 
                   chapterAnnotations.forEach((ann) => {
@@ -803,7 +859,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
                   });
 
                   return (
-                    <p key={pIdx} className="leading-relaxed text-justify sm:text-left">
+                    <p key={block.id || pIdx} className={`leading-relaxed text-justify sm:text-left ${block.type === 'heading' ? 'text-xl font-bold' : block.type === 'quote' ? 'border-l-4 border-orange-500 pl-4 font-serif italic' : ''}`}>
                       {renderedContent}
                     </p>
                   );

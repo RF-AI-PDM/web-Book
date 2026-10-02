@@ -314,7 +314,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           {book.title}
                         </p>
                         <p className="text-xs text-zinc-400 truncate">
-                          oleh <span className="text-zinc-300">{book.author}</span> · {book.readTimeMinutes} menit
+                          oleh <span className="text-zinc-300">{book.author}</span> · {book.sourceUrl ? book.fileType?.slice(1).toUpperCase() : `${book.readTimeMinutes} menit`}
                         </p>
                       </div>
                     </button>

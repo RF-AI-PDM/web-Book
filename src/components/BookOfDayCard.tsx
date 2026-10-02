@@ -17,7 +17,7 @@ export const BookOfDayCard: React.FC<BookOfDayCardProps> = ({ book, onRead }) =>
           <span>Buku Hari Ini</span>
         </h2>
         <span className="text-[11px] text-zinc-500 font-mono">
-          Edisi 22 September
+          Koleksi tersedia
         </span>
       </div>
 
@@ -43,7 +43,7 @@ export const BookOfDayCard: React.FC<BookOfDayCardProps> = ({ book, onRead }) =>
               </span>
               <span className="text-xs text-zinc-400 flex items-center gap-1">
                 <Clock size={12} />
-                {book.readTimeMinutes} menit baca
+                {book.sourceUrl ? book.fileType?.slice(1).toUpperCase() : `${book.readTimeMinutes} menit baca`}
               </span>
             </div>
 

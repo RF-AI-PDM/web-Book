@@ -95,20 +95,6 @@ export const BookCover: React.FC<BookCoverProps> = ({
         <div style={{ color: book.coverAccent }}>{getIcon()}</div>
       </div>
 
-      {/* Center artwork / motif */}
-      <div className="relative z-10 my-auto flex flex-col items-center justify-center text-center">
-        {book.id === 'competing-in-the-age-of-ai' && (
-          <div className="w-12 h-12 rounded-full border border-emerald-500/40 flex items-center justify-center bg-emerald-950/30 mb-1">
-            <div className="w-6 h-6 rounded-full bg-emerald-500/30 animate-pulse" />
-          </div>
-        )}
-        {book.id === '48-laws-of-power' && (
-          <div className="w-12 h-12 rounded-full border-2 border-amber-500/60 flex items-center justify-center mb-1">
-            <span className="font-serif font-bold text-amber-400 text-sm">48</span>
-          </div>
-        )}
-      </div>
-
       {/* Bottom Title & Author */}
       <div className="relative z-10 mt-auto">
         <h4 

@@ -17,11 +17,7 @@ export const getSavedBadgeUnlocks = (): BadgeUnlockMap => {
     // fallback
   }
 
-  // Initial seed with demo unlocks so new users already see achievements
-  const initialUnlocks: BadgeUnlockMap = {
-    'first-finish': new Date(Date.now() - 3 * 86400000).toISOString(),
-    'streak-starter': new Date(Date.now() - 86400000).toISOString()
-  };
+  const initialUnlocks: BadgeUnlockMap = {};
   try {
     localStorage.setItem(LOCAL_STORAGE_BADGES, JSON.stringify(initialUnlocks));
   } catch {

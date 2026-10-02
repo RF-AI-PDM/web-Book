@@ -39,7 +39,7 @@ export const ContinueReadingCard: React.FC<ContinueReadingCardProps> = ({
                 {readingItem.progress}% selesai
               </span>
               <span className="text-xs text-zinc-500">
-                {fullBook.readTimeMinutes} menit baca
+                {fullBook.sourceUrl ? fullBook.fileType?.slice(1).toUpperCase() : `${fullBook.readTimeMinutes} menit baca`}
               </span>
             </div>
 

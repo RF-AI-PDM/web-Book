@@ -332,33 +332,3 @@ export const computeGoalProgress = (
     weekDays
   };
 };
-
-export const INITIAL_DEMO_LOGS: Record<string, number> = (() => {
-  const today = new Date();
-  const logs: Record<string, number> = {};
-  
-  // Set today: 12 minutes
-  logs[getLocalDateString(today)] = 12;
-
-  // Yesterday: 20 minutes (achieved)
-  const d1 = new Date(today);
-  d1.setDate(today.getDate() - 1);
-  logs[getLocalDateString(d1)] = 20;
-
-  // 2 days ago: 18 minutes (achieved)
-  const d2 = new Date(today);
-  d2.setDate(today.getDate() - 2);
-  logs[getLocalDateString(d2)] = 18;
-
-  // 3 days ago: 15 minutes (achieved)
-  const d3 = new Date(today);
-  d3.setDate(today.getDate() - 3);
-  logs[getLocalDateString(d3)] = 15;
-
-  // 4 days ago: 10 minutes
-  const d4 = new Date(today);
-  d4.setDate(today.getDate() - 4);
-  logs[getLocalDateString(d4)] = 10;
-
-  return logs;
-})();

@@ -1,4 +1,4 @@
-import { Book, Chapter } from '../types';
+import { Book, Chapter, ContentBlock, DocumentAsset } from '../types';
 
 // mammoth, pdfjs-dist, and jszip are heavy (they'd otherwise be the single
 // largest chunk of the main bundle) and are only ever needed when a user
@@ -10,7 +10,8 @@ async function loadPdfjs() {
   const pdfjsLib = await import('pdfjs-dist');
   if (!pdfWorkerConfigured && typeof window !== 'undefined') {
     try {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '4.10.38'}/pdf.worker.min.mjs`;
+      const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
       pdfWorkerConfigured = true;
     } catch (e) {
       console.warn('PDF.js worker setup fallback:', e);
@@ -30,6 +31,7 @@ export interface ParsedDocumentResult {
   estimatedReadTimeMinutes: number;
   fileName: string;
   fileType: string;
+  assets?: DocumentAsset[];
 }
 
 /**
@@ -219,6 +221,7 @@ export async function parseEpubFile(file: File): Promise<{
   description?: string;
   chapters: Chapter[];
   fullText: string;
+  assets: DocumentAsset[];
 }> {
   const { default: JSZip } = await import('jszip');
   const arrayBuffer = await file.arrayBuffer();
@@ -282,6 +285,7 @@ export async function parseEpubFile(file: File): Promise<{
   });
 
   const parsedChapters: Chapter[] = [];
+  const assets: DocumentAsset[] = [];
   let fullTextCombined = '';
   let chapterIndex = 1;
 
@@ -298,8 +302,10 @@ export async function parseEpubFile(file: File): Promise<{
       heading = `Bagian ${chapterIndex}`;
     }
 
-    // Extract readable paragraphs
+    // Extract readable paragraphs and embedded illustrations. Image blobs are
+    // kept local to the open book, so they never need an external host.
     const paragraphs: string[] = [];
+    const blocks: ContentBlock[] = [];
     const elements = doc.querySelectorAll('p, blockquote, li, div');
     elements.forEach(el => {
       if (el.tagName.toLowerCase() === 'div' && el.querySelector('p')) {
@@ -308,8 +314,32 @@ export async function parseEpubFile(file: File): Promise<{
       const text = el.textContent?.trim();
       if (text && text.length > 15) {
         paragraphs.push(text);
+        blocks.push({ id: `epub-ch-${chapterIndex}-p-${paragraphs.length}`, type: 'paragraph', text });
       }
     });
+
+    const imageElements = doc.querySelectorAll('img[src]');
+    for (let imageIndex = 0; imageIndex < imageElements.length; imageIndex++) {
+      const image = imageElements[imageIndex];
+      const rawSource = image.getAttribute('src');
+      if (!rawSource || rawSource.startsWith('data:')) continue;
+      const imagePath = decodeURIComponent(new URL(rawSource, `https://epub.local/${itemPath}`).pathname.slice(1));
+      const imageFile = zip.file(imagePath);
+      if (!imageFile) continue;
+
+      const extension = imagePath.split('.').pop()?.toLowerCase();
+      const mediaType = extension === 'png' ? 'image/png'
+        : extension === 'gif' ? 'image/gif'
+        : extension === 'svg' ? 'image/svg+xml'
+        : extension === 'webp' ? 'image/webp'
+        : 'image/jpeg';
+      const blob = await imageFile.async('blob');
+      const assetId = `epub-ch-${chapterIndex}-image-${imageIndex + 1}`;
+      const sourceUrl = URL.createObjectURL(new Blob([blob], { type: mediaType }));
+      const alt = image.getAttribute('alt')?.trim() || `Ilustrasi pada ${heading}`;
+      assets.push({ id: assetId, mediaType, fileName: imagePath.split('/').pop(), sourcePath: imagePath, sourceUrl, byteSize: blob.size });
+      blocks.push({ id: `${assetId}-block`, type: 'image', assetId, alt });
+    }
 
     if (paragraphs.length > 0) {
       const chapterWords = paragraphs.reduce((acc, p) => acc + p.split(/\s+/).length, 0);
@@ -320,6 +350,7 @@ export async function parseEpubFile(file: File): Promise<{
           title: heading,
           readTimeMinutes: Math.max(3, Math.round(chapterWords / 150)),
           content: paragraphs,
+          blocks,
           keyQuote: paragraphs[0] ? paragraphs[0].slice(0, 140) + '...' : undefined,
           actionItem: 'Tandai wawasan kunci dari bab ini untuk diterapkan.'
         });
@@ -334,7 +365,8 @@ export async function parseEpubFile(file: File): Promise<{
     author,
     description,
     chapters: parsedChapters,
-    fullText: fullTextCombined.trim()
+    fullText: fullTextCombined.trim(),
+    assets
   };
 }
 
@@ -349,6 +381,7 @@ export async function parseUploadedDocument(file: File): Promise<ParsedDocumentR
   let customAuthor: string | undefined;
   let customSummary: string | undefined;
   let customChapters: Chapter[] | undefined;
+  let assets: DocumentAsset[] | undefined;
 
   if (extension === '.pdf') {
     rawText = await parsePdfFile(file);
@@ -362,6 +395,7 @@ export async function parseUploadedDocument(file: File): Promise<ParsedDocumentR
     if (epubResult.chapters.length > 0) {
       customChapters = epubResult.chapters;
     }
+    assets = epubResult.assets;
     rawText = epubResult.fullText;
   } else if (['.txt', '.md', '.markdown', '.json', '.html'].includes(extension)) {
     rawText = await parsePlainTextFile(file);
@@ -409,7 +443,8 @@ export async function parseUploadedDocument(file: File): Promise<ParsedDocumentR
     wordCount,
     estimatedReadTimeMinutes,
     fileName,
-    fileType: extension
+    fileType: extension,
+    assets
   };
 }
 
@@ -436,6 +471,7 @@ export function createF15BookFromUpload(
     category?: string;
     author?: string;
     title?: string;
+    assets?: DocumentAsset[];
   }
 ): Book {
   const randomPalette = options?.customCoverColor || PALETTES[Math.floor(Math.random() * PALETTES.length)];
@@ -463,6 +499,7 @@ export function createF15BookFromUpload(
     uploadedBy: options?.uploadedBy ?? 'user',
     uploadedAt: new Date().toISOString(),
     fileType: doc.fileType,
-    price: options?.price
+    price: options?.price,
+    assets: options?.assets || doc.assets
   };
 }
