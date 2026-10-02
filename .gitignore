@@ -12,3 +12,6 @@ firebase-applet-config.json
 
 # npm lock (proyek pakai pnpm)
 package-lock.json
+
+.vercel
+.env*

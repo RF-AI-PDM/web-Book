@@ -1,7 +1,8 @@
 import React from 'react';
-import { X, Type, Palette, AlignLeft, Check, Sparkles } from 'lucide-react';
+import { X, Type, AlignLeft, Check } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-import { ReaderFontSize, ReaderFontFamily, ReaderLineHeight, ReaderTheme } from '../types';
+import { ReaderFontSize, ReaderFontFamily, ReaderLineHeight } from '../types';
+import { ThemeModeSelect } from './ThemeModeSelect';
 
 interface ReaderCustomizerModalProps {
   isOpen: boolean;
@@ -10,8 +11,6 @@ interface ReaderCustomizerModalProps {
 
 export const ReaderCustomizerModal: React.FC<ReaderCustomizerModalProps> = ({ isOpen, onClose }) => {
   const { 
-    theme, 
-    setTheme, 
     fontSize, 
     setFontSize, 
     fontFamily, 
@@ -21,15 +20,6 @@ export const ReaderCustomizerModal: React.FC<ReaderCustomizerModalProps> = ({ is
   } = useTheme();
 
   if (!isOpen) return null;
-
-  const themes: { id: ReaderTheme; label: string; bg: string; text: string; border: string }[] = [
-    { id: 'dark', label: 'Obsidian', bg: '#0d0e12', text: '#e4e4e7', border: '#27272a' },
-    { id: 'sepia', label: 'Sepia', bg: '#fbf0d9', text: '#2d261e', border: '#e4d3af' },
-    { id: 'cream', label: 'Krem', bg: '#f5edd6', text: '#2b2319', border: '#d8c7a6' },
-    { id: 'sage', label: 'Sage', bg: '#15221c', text: '#e0ece5', border: '#23382f' },
-    { id: 'midnight', label: 'Midnight', bg: '#0a1128', text: '#e2e8f0', border: '#1e293b' },
-    { id: 'light', label: 'Terang', bg: '#fafafa', text: '#18181b', border: '#e4e4e7' }
-  ];
 
   const fonts: { id: ReaderFontFamily; label: string; fontClass: string; desc: string }[] = [
     { id: 'newsreader', label: 'Newsreader', fontClass: 'font-newsreader', desc: 'Serif klasik editorial' },
@@ -79,36 +69,9 @@ export const ReaderCustomizerModal: React.FC<ReaderCustomizerModalProps> = ({ is
           </button>
         </div>
 
-        {/* 1. Warna Latar Belakang Buku */}
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-              <Palette size={14} className="text-orange-500" />
-              <span>Warna Latar Belakang Buku</span>
-            </label>
-            <span className="text-[10px] text-zinc-400 capitalize">
-              {themes.find(t => t.id === theme)?.label}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2.5">
-            {themes.map((t) => {
-              const isSelected = theme === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setTheme(t.id)}
-                  style={{ backgroundColor: t.bg, color: t.text, borderColor: t.border }}
-                  className={`p-3 rounded-2xl border text-xs font-medium flex items-center justify-between transition-all duration-200 cursor-pointer shadow-sm ${
-                    isSelected ? 'ring-2 ring-orange-500 ring-offset-2 ring-offset-[#14151b] scale-[1.02]' : 'hover:scale-[1.01]'
-                  }`}
-                >
-                  <span className="font-semibold text-xs truncate">{t.label}</span>
-                  {isSelected && <Check size={14} className="text-orange-500 shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
+        <div className="flex items-center justify-between rounded-xl border border-stone-800 bg-stone-900/60 p-3">
+          <span className="text-xs font-semibold text-zinc-300">Tema tampilan</span>
+          <ThemeModeSelect id="reader-theme-selector" />
         </div>
 
         {/* 2. Jenis Font */}

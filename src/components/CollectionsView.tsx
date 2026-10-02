@@ -3,6 +3,7 @@ import { Book, BookSortOption } from '../types';
 import { CATEGORIES } from '../data/books';
 import { ArrowLeft, BookOpen, Layers, ArrowRight, Search, ArrowUpDown, X } from 'lucide-react';
 import { BookCover } from './BookCover';
+import { ThemeModeSelect } from './ThemeModeSelect';
 
 interface CollectionsViewProps {
   books: Book[];
@@ -79,8 +80,10 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
           </p>
         </div>
 
-        {activeCategory ? (
-          <button
+        <div className="flex items-center gap-3">
+          <ThemeModeSelect id="collections-theme-selector" />
+          {activeCategory ? (
+            <button
             onClick={() => {
               setActiveCategory(null);
               setSearchQuery('');
@@ -88,13 +91,14 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-zinc-200 text-xs font-semibold transition-colors cursor-pointer"
           >
             <span>Semua Rak Koleksi</span>
-          </button>
-        ) : (
-          <div className="flex items-center gap-2 text-xs text-zinc-400">
-            <Layers size={16} className="text-orange-500" />
-            <span>{curatedCategories.length} Rak Tematik</span>
-          </div>
-        )}
+            </button>
+          ) : (
+            <div className="hidden sm:flex items-center gap-2 text-xs text-zinc-400">
+              <Layers size={16} className="text-orange-500" />
+              <span>{curatedCategories.length} Rak Tematik</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* If category selected, show books in this collection with Search & Sort */}

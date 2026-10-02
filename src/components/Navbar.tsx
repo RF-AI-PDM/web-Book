@@ -17,13 +17,12 @@ import {
   Crown,
   Upload,
   ShieldAlert,
-  Copy,
-  Sun,
-  Moon
+  Copy
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Book, BookSortOption } from '../types';
+import { ThemeModeSelect } from './ThemeModeSelect';
 
 interface NavbarProps {
   currentView: 'home' | 'collections' | 'my-books' | 'reader';
@@ -55,7 +54,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     isVip,
     isAdminMode 
   } = useAuth();
-  const { theme, setTheme, setIsSettingsOpen } = useTheme();
+  const { setIsSettingsOpen } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchSort, setSearchSort] = useState<BookSortOption>('recent');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -329,14 +328,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
 
-          {/* Quick Light / Dark Toggle */}
-          <button
-            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-            className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-stone-800/60 rounded-lg transition-colors cursor-pointer"
-            title={theme === 'light' ? 'Ganti ke Mode Gelap' : 'Ganti ke Mode Terang'}
-          >
-            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-          </button>
+          <ThemeModeSelect compact id="nav-theme-selector" />
 
           {/* Settings Trigger */}
           <button

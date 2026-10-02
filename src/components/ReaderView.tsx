@@ -290,34 +290,22 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   // Theme styling for reader canvas
   const themeBgClasses = {
     dark: 'bg-[#0d0e12] text-zinc-200',
-    sepia: 'bg-[#fbf0d9] text-[#2d261e]',
-    cream: 'bg-[#f5edd6] text-[#2b2319]',
-    sage: 'bg-[#15221c] text-[#e0ece5]',
-    midnight: 'bg-[#0a1128] text-[#e2e8f0]',
     light: 'bg-[#fafafa] text-zinc-800'
   }[theme];
 
   const themeNavClasses = {
     dark: 'bg-[#0d0e12]/95 border-stone-800 text-zinc-200',
-    sepia: 'bg-[#fbf0d9]/95 border-[#e4d3af] text-[#2d261e]',
-    cream: 'bg-[#f5edd6]/95 border-[#d8c7a6] text-[#2b2319]',
-    sage: 'bg-[#15221c]/95 border-[#23382f] text-[#e0ece5]',
-    midnight: 'bg-[#0a1128]/95 border-[#1e293b] text-[#e2e8f0]',
     light: 'bg-white/95 border-zinc-200 text-zinc-800'
   }[theme];
 
   const themeContainerClasses = {
     dark: 'bg-[#15161c] border-stone-800/80',
-    sepia: 'bg-[#f4e6c9] border-[#e4d3af]',
-    cream: 'bg-[#ede1c7] border-[#d8c7a6]',
-    sage: 'bg-[#1d2d26] border-[#294237]',
-    midnight: 'bg-[#111c3a] border-[#22335c]',
     light: 'bg-white border-zinc-200'
   }[theme];
 
   // Floating overlay surface (selection toolbar, popovers, drawer) — two-tone
   // so it stays readable against light reading themes instead of always dark.
-  const isLightSurface = theme === 'light' || theme === 'sepia' || theme === 'cream';
+  const isLightSurface = theme === 'light';
   const overlaySurface = isLightSurface
     ? 'bg-white border-zinc-200 text-zinc-800'
     : 'bg-[#16171f] border-stone-700 text-zinc-200';

@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { ReaderFontSize, ReaderFontFamily, ReaderLineHeight, ReaderTheme } from '../types';
-import { getAppColorMode, isReaderTheme } from '../utils/themeUtils';
+import { AppTheme, ReaderFontSize, ReaderFontFamily, ReaderLineHeight, ReaderTheme } from '../types';
+import { getAppColorMode, normalizeThemePreference } from '../utils/themeUtils';
 
 interface ThemeContextType {
-  theme: ReaderTheme;
+  theme: AppTheme;
+  themePreference: ReaderTheme;
   fontSize: ReaderFontSize;
   fontFamily: ReaderFontFamily;
   lineHeight: ReaderLineHeight;
@@ -20,10 +21,11 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<ReaderTheme>(() => {
-    const savedTheme = localStorage.getItem('f15_theme');
-    return isReaderTheme(savedTheme) ? savedTheme : 'dark';
+  const [themePreference, setThemePreference] = useState<ReaderTheme>(() => {
+    return normalizeThemePreference(localStorage.getItem('f15_theme'));
   });
+  const [prefersDark, setPrefersDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const theme = getAppColorMode(themePreference, prefersDark);
 
   const [fontSize, setFontSizeState] = useState<ReaderFontSize>(() => {
     return (localStorage.getItem('f15_fontsize') as ReaderFontSize) || 'standard';
@@ -41,8 +43,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isReaderCustomizerOpen, setIsReaderCustomizerOpen] = useState(false);
 
   const setTheme = (t: ReaderTheme) => {
-    setThemeState(t);
-    localStorage.setItem('f15_theme', t);
+    setThemePreference(t);
   };
 
   const setFontSize = (s: ReaderFontSize) => {
@@ -61,14 +62,25 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove('theme-light', 'theme-sepia', 'theme-dark', 'theme-cream', 'theme-sage', 'theme-midnight');
-    root.classList.add(`theme-${theme}`);
-    const appColorMode = getAppColorMode(theme);
-    root.dataset.appTheme = appColorMode;
-    root.style.colorScheme = appColorMode;
+    localStorage.setItem('f15_theme', themePreference);
+  }, [themePreference]);
 
-    if (theme === 'dark' || theme === 'midnight' || theme === 'sage') {
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const updatePreference = (event: MediaQueryListEvent) => setPrefersDark(event.matches);
+    setPrefersDark(mediaQuery.matches);
+    mediaQuery.addEventListener('change', updatePreference);
+    return () => mediaQuery.removeEventListener('change', updatePreference);
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove('theme-light', 'theme-dark', 'theme-sepia', 'theme-cream', 'theme-sage', 'theme-midnight');
+    root.classList.add(`theme-${theme}`);
+    root.dataset.appTheme = theme;
+    root.style.colorScheme = theme;
+
+    if (theme === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
@@ -79,6 +91,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <ThemeContext.Provider
       value={{
         theme,
+        themePreference,
         fontSize,
         fontFamily,
         lineHeight,

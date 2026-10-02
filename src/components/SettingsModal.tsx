@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sun, Moon, Coffee, Download, User, LogOut, Check, Copy } from 'lucide-react';
+import { X, Sun, Moon, Monitor, Download, User, LogOut, Check, Copy } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
 export const SettingsModal: React.FC = () => {
-  const { isSettingsOpen, setIsSettingsOpen, theme, setTheme, fontSize, setFontSize } = useTheme();
+  const { isSettingsOpen, setIsSettingsOpen, themePreference, setTheme, fontSize, setFontSize } = useTheme();
   const { user, signIn, signOutUser } = useAuth();
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -97,34 +97,37 @@ export const SettingsModal: React.FC = () => {
           </label>
           <div className="grid grid-cols-3 gap-2 bg-stone-900 p-1 rounded-xl border border-stone-800">
             <button
-              onClick={() => setTheme('light')}
+              onClick={() => setTheme('system')}
               className={`py-2 px-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
-                theme === 'light'
+                themePreference === 'system'
                   ? 'bg-stone-800 text-orange-400 shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
+              aria-pressed={themePreference === 'system'}
+            >
+              <Monitor size={13} />
+              <span>Sistem</span>
+            </button>
+            <button
+              onClick={() => setTheme('light')}
+              className={`py-2 px-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
+                themePreference === 'light'
+                  ? 'bg-stone-800 text-orange-400 shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+              aria-pressed={themePreference === 'light'}
             >
               <Sun size={13} />
               <span>Terang</span>
             </button>
             <button
-              onClick={() => setTheme('sepia')}
-              className={`py-2 px-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
-                theme === 'sepia'
-                  ? 'bg-stone-800 text-orange-400 shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Coffee size={13} />
-              <span>Sepia</span>
-            </button>
-            <button
               onClick={() => setTheme('dark')}
               className={`py-2 px-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
-                theme === 'dark'
+                themePreference === 'dark'
                   ? 'bg-stone-800 text-orange-400 shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
+              aria-pressed={themePreference === 'dark'}
             >
               <Moon size={13} />
               <span>Gelap</span>

@@ -129,7 +129,8 @@ export interface DayReadingLog {
   minutes: number;
 }
 
-export type ReaderTheme = 'dark' | 'sepia' | 'light' | 'cream' | 'sage' | 'midnight';
+export type ReaderTheme = 'system' | 'dark' | 'light';
+export type AppTheme = 'dark' | 'light';
 export type ReaderFontSize = 'xs' | 'small' | 'standard' | 'large' | 'xl';
 export type ReaderFontFamily = 'newsreader' | 'jakarta' | 'merriweather' | 'mono' | 'literata';
 export type ReaderLineHeight = 'compact' | 'standard' | 'relaxed';
