@@ -1,9 +1,38 @@
+export type TextAlignment = 'left' | 'center' | 'right' | 'justify';
+
+export type ContentBlock =
+  | { id: string; type: 'heading'; level: 1 | 2 | 3; text: string }
+  | { id: string; type: 'paragraph'; text: string; align?: TextAlignment }
+  | { id: string; type: 'list'; ordered: boolean; items: string[] }
+  | { id: string; type: 'quote'; text: string; attribution?: string }
+  | { id: string; type: 'image'; assetId: string; alt: string; caption?: string; width?: number; height?: number }
+  | { id: string; type: 'pageBreak'; pageNumber?: number };
+
+export interface DocumentAsset {
+  id: string;
+  mediaType: string;
+  fileName?: string;
+  sourcePath?: string;
+  width?: number;
+  height?: number;
+  byteSize: number;
+  checksum?: string;
+}
+
+export interface ExtractionDiagnostics {
+  warnings: string[];
+  imageCount: number;
+  pagesWithoutText: number;
+  quality: 'high' | 'medium' | 'low';
+}
+
 export interface Chapter {
   id: string;
   number: number;
   title: string;
   readTimeMinutes: number;
   content: string[];
+  blocks?: ContentBlock[];
   keyQuote?: string;
   actionItem?: string;
 }
@@ -27,8 +56,12 @@ export interface Book {
   uploadedBy?: 'admin' | 'user';
   uploadedAt?: string;
   fileType?: string;
+  sourceUrl?: string;
   price?: number;
   hasSubcollectionChapters?: boolean;
+  documentSchemaVersion?: 1 | 2;
+  assets?: DocumentAsset[];
+  extractionDiagnostics?: ExtractionDiagnostics;
 }
 
 export interface Annotation {
@@ -155,4 +188,3 @@ export interface SubscriptionInfo {
 }
 
 export type PaymentMethodType = 'qris' | 'gopay' | 'ovo' | 'bca_va' | 'mandiri_va' | 'bri_va';
-
