@@ -25,7 +25,6 @@ import {
   syncDailyReadingLogsToCloud,
   fetchDailyReadingLogsFromCloud,
   // Security Week 1 — new syncs
-  syncSubscriptionToCloud,
   fetchSubscriptionFromCloud,
   listenSubscription,
   syncCustomBookToCloud,
@@ -44,8 +43,7 @@ import {
   ReadingStats, 
   SavedBook, 
   SharedHighlight,
-  SubscriptionInfo,
-  SubscriptionTier
+  SubscriptionInfo
 } from '../types';
 import { BOOKS_DATA, LEGACY_SAMPLE_BOOK_IDS } from '../data/books';
 import { 
@@ -53,6 +51,12 @@ import {
   GoalProgressSummary, 
   getLocalDateString
 } from '../utils/readingGoalUtils';
+import { documentBookStore, migrateLegacyBooks } from '../lib/documentBookStore';
+import { deleteDocumentAssetsForBook } from '../lib/documentAssetStore';
+import { hasActiveSubscription } from '../utils/subscriptionUtils';
+import { recordCompletedBook } from '../utils/readingCompletion';
+import { exportBookAssets, restoreBookAssets } from '../lib/documentBackup';
+import { validateReaderBackup } from '../lib/readerBackupValidation';
 
 interface AuthContextType {
   user: User | null;
@@ -86,14 +90,13 @@ interface AuthContextType {
   removeHistoryItem: (bookId: string) => Promise<void>;
   clearHistory: () => Promise<void>;
   clearStats: () => void;
-  exportBackup: () => string;
-  importBackup: (jsonStr: string) => boolean;
+  exportBackup: () => Promise<string>;
+  importBackup: (jsonStr: string) => Promise<boolean>;
+  localPersistenceError: string | null;
 
   // Subscription / Monetization
   subscription: SubscriptionInfo;
   isVip: boolean;
-  upgradeSubscription: (tier: SubscriptionTier, paymentMethod: string, orderId?: string) => Promise<void>;
-  cancelSubscription: () => Promise<void>;
 
   // Customer Personal Uploads
   customBooks: Book[];
@@ -119,37 +122,10 @@ const LOCAL_STORAGE_STATS = 'f15_reading_stats';
 const LOCAL_STORAGE_SYNC_TIME = 'f15_last_synced';
 const LOCAL_STORAGE_GOAL = 'f15_reading_goal';
 const LOCAL_STORAGE_DAILY_LOGS = 'f15_reading_daily_logs';
-const LOCAL_STORAGE_SUBSCRIPTION = 'f15_subscription';
 const LOCAL_STORAGE_CUSTOM_BOOKS = 'f15_custom_books';
 const LOCAL_STORAGE_CATALOG_BOOKS = 'f15_catalog_books';
-// Helper to safely write to localStorage without crashing on QuotaExceededError
-function safeSaveLocalStorage(key: string, value: any) {
-  try {
-    localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
-  } catch (err) {
-    console.warn(`LocalStorage quota reached for key "${key}". Saving lightweight version:`, err);
-    if (Array.isArray(value)) {
-      try {
-        // Strip heavy chapter content paragraphs to fit within 5MB quota
-        const lightweight = value.map((b: any) => {
-          if (b && Array.isArray(b.chapters)) {
-            return {
-              ...b,
-              chapters: b.chapters.map((c: any) => ({
-                ...c,
-                content: Array.isArray(c.content) ? c.content.slice(0, 2) : []
-              }))
-            };
-          }
-          return b;
-        });
-        localStorage.setItem(key, JSON.stringify(lightweight));
-      } catch (e2) {
-        console.error('Critical quota error saving to localStorage:', e2);
-      }
-    }
-  }
-}
+const FREE_SUBSCRIPTION: SubscriptionInfo = { tier: 'free', isActive: false };
+const personalScope = (uid?: string) => `personal:${uid || 'guest'}`;
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -163,45 +139,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   // Subscription / Monetization state
-  const [subscription, setSubscription] = useState<SubscriptionInfo>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_SUBSCRIPTION);
-      if (saved) return JSON.parse(saved);
-      return { tier: 'free', isActive: false };
-    } catch {
-      return { tier: 'free', isActive: false };
-    }
-  });
+  const [subscription, setSubscription] = useState<SubscriptionInfo>(FREE_SUBSCRIPTION);
+  const [subscriptionOwner, setSubscriptionOwner] = useState<string | null>(null);
+  const [subscriptionClock, setSubscriptionClock] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setSubscriptionClock(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const isVip = useMemo(() => {
-    if (subscription.tier === 'vip_monthly' || subscription.tier === 'vip_yearly') {
-      if (subscription.expiresAt) {
-        return new Date(subscription.expiresAt).getTime() > Date.now();
-      }
-      return subscription.isActive;
-    }
-    return false;
-  }, [subscription]);
+    return !!user && subscriptionOwner === user.uid && hasActiveSubscription(subscription, subscriptionClock);
+  }, [subscription, subscriptionOwner, user, subscriptionClock]);
 
   // Customer Personal Uploads state
-  const [customBooks, setCustomBooks] = useState<Book[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_CUSTOM_BOOKS);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [customBooks, setCustomBooks] = useState<Book[]>([]);
 
   // Admin / Owner Catalog Uploads state
-  const [catalogBooks, setCatalogBooks] = useState<Book[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_CATALOG_BOOKS);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [catalogBooks, setCatalogBooks] = useState<Book[]>([]);
+  const [localPersistenceError, setLocalPersistenceError] = useState<string | null>(null);
+  const libraryReady = useRef<Promise<void> | null>(null);
+  useEffect(() => {
+    let active = true;
+    libraryReady.current = Promise.all([
+      migrateLegacyBooks(documentBookStore, personalScope(), localStorage, LOCAL_STORAGE_CUSTOM_BOOKS),
+      migrateLegacyBooks(documentBookStore, 'catalog', localStorage, LOCAL_STORAGE_CATALOG_BOOKS),
+    ]).then(([personal, catalog]) => {
+      if (!active) return;
+      setCustomBooks(personal);
+      setCatalogBooks(catalog);
+    });
+    void libraryReady.current.catch(() => {
+      if (active) setLocalPersistenceError('Penyimpanan buku tidak dapat dibuka. Data lama tetap disimpan; periksa ruang penyimpanan browser.');
+    });
+    return () => { active = false; };
+  }, []);
 
   // Admin mode: computed from VITE_ADMIN_UIDS env var — NOT stored in localStorage
   // Security: user cannot manipulate this via DevTools / localStorage
@@ -226,108 +197,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const canUploadMoreCustomBooks = isVip || customBooks.length < maxFreeUploads;
 
   const addCustomBook = async (book: Book) => {
+    await libraryReady.current;
+    await documentBookStore.save(personalScope(user?.uid), book);
     setCustomBooks(prev => {
       const next = [book, ...prev.filter(b => b.id !== book.id)];
-      safeSaveLocalStorage(LOCAL_STORAGE_CUSTOM_BOOKS, next);
       return next;
     });
     // Sync to Firestore (cross-device with subcollection chapters)
     if (user) {
       syncCustomBookToCloud(user.uid, book).catch(err => {
         console.warn('Could not sync custom book to cloud:', err);
+        setSyncStatus('error');
       });
     }
   };
 
   const deleteCustomBook = async (bookId: string) => {
+    await libraryReady.current;
+    if (user) await deleteCustomBookFromCloud(user.uid, bookId);
+    await deleteDocumentAssetsForBook(bookId);
+    await documentBookStore.remove(personalScope(user?.uid), bookId);
     setCustomBooks(prev => {
       const next = prev.filter(b => b.id !== bookId);
-      safeSaveLocalStorage(LOCAL_STORAGE_CUSTOM_BOOKS, next);
       return next;
     });
-    if (user) {
-      deleteCustomBookFromCloud(user.uid, bookId).catch(err => {
-        console.warn('Could not delete custom book from cloud:', err);
-      });
-    }
   };
 
   const addCatalogBook = async (book: Book) => {
+    if (!isAdminMode) throw new Error('Hanya admin yang dapat mengubah katalog.');
+    await libraryReady.current;
+    await syncCatalogBookToCloud(book);
+    await documentBookStore.save('catalog', book);
     setCatalogBooks(prev => {
       const next = [book, ...prev.filter(b => b.id !== book.id)];
-      safeSaveLocalStorage(LOCAL_STORAGE_CATALOG_BOOKS, next);
       return next;
-    });
-    // Sync to global Firestore catalog with subcollection chapters
-    syncCatalogBookToCloud(book).catch(err => {
-      console.warn('Could not sync catalog book to cloud:', err);
     });
   };
 
   const deleteCatalogBook = async (bookId: string) => {
+    if (!isAdminMode) throw new Error('Hanya admin yang dapat mengubah katalog.');
+    await libraryReady.current;
+    await deleteCatalogBookFromCloud(bookId);
+    await deleteDocumentAssetsForBook(bookId);
+    await documentBookStore.remove('catalog', bookId);
     setCatalogBooks(prev => {
       const next = prev.filter(b => b.id !== bookId);
-      safeSaveLocalStorage(LOCAL_STORAGE_CATALOG_BOOKS, next);
       return next;
-    });
-    deleteCatalogBookFromCloud(bookId).catch(err => {
-      console.warn('Could not delete catalog book from cloud:', err);
     });
   };
 
   const updateCatalogBook = async (book: Book) => {
+    if (!isAdminMode) throw new Error('Hanya admin yang dapat mengubah katalog.');
+    await libraryReady.current;
+    await syncCatalogBookToCloud(book);
+    await documentBookStore.save('catalog', book);
     setCatalogBooks(prev => {
       const next = prev.map(b => b.id === book.id ? book : b);
-      safeSaveLocalStorage(LOCAL_STORAGE_CATALOG_BOOKS, next);
       return next;
     });
-    syncCatalogBookToCloud(book).catch(err => {
-      console.warn('Could not update catalog book in cloud:', err);
-    });
-  };
-
-  const upgradeSubscription = async (tier: SubscriptionTier, paymentMethod: string, orderId?: string) => {
-    const now = new Date();
-    const expires = new Date();
-    if (tier === 'vip_yearly') {
-      expires.setFullYear(expires.getFullYear() + 1);
-    } else {
-      expires.setMonth(expires.getMonth() + 1);
-    }
-
-    const updated: SubscriptionInfo = {
-      tier,
-      isActive: true,
-      startedAt: now.toISOString(),
-      expiresAt: expires.toISOString(),
-      paymentMethod,
-      orderId: orderId || `F15-VIP-${Date.now().toString().slice(-6)}`
-    };
-
-    setSubscription(updated);
-    localStorage.setItem(LOCAL_STORAGE_SUBSCRIPTION, JSON.stringify(updated));
-
-    // Sync to Firestore — this is the source of truth, prevents localStorage manipulation
-    if (user) {
-      syncSubscriptionToCloud(user.uid, updated).catch(err => {
-        console.warn('Could not sync subscription to cloud:', err);
-      });
-    }
-  };
-
-  const cancelSubscription = async () => {
-    const updated: SubscriptionInfo = {
-      tier: 'free',
-      isActive: false
-    };
-    setSubscription(updated);
-    localStorage.setItem(LOCAL_STORAGE_SUBSCRIPTION, JSON.stringify(updated));
-
-    if (user) {
-      syncSubscriptionToCloud(user.uid, updated).catch(err => {
-        console.warn('Could not sync subscription cancellation to cloud:', err);
-      });
-    }
   };
 
   // Local & Cloud states
@@ -380,6 +307,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return 0;
     }
   });
+  const completedBookIds = useRef(new Set<string>(readingHistory.filter(book => book.completed).map(book => book.bookId)));
+  const restoredCompletionIds = useRef(false);
+  useEffect(() => {
+    if (!restoredCompletionIds.current) {
+      try {
+        const ids: unknown = JSON.parse(localStorage.getItem('f15_completed_book_ids') || '[]');
+        if (Array.isArray(ids)) ids.filter(id => typeof id === 'string').forEach(id => completedBookIds.current.add(id));
+      } catch { /* Keep the completion ids recovered from reading history. */ }
+      restoredCompletionIds.current = true;
+    }
+    readingHistory.filter(book => book.completed).forEach(book => completedBookIds.current.add(book.bookId));
+    localStorage.setItem('f15_completed_book_ids', JSON.stringify([...completedBookIds.current]));
+  }, [readingHistory]);
 
   // Calculate stats
   const readingStats: ReadingStats = useMemo(() => {
@@ -446,10 +386,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Always-fresh snapshot of state that long-lived closures (event listeners,
   // effects with narrow dep arrays) need to read without going stale.
   const latestStateRef = useRef({
-    user, savedBooks, annotations, readingHistory, readingGoal, dailyReadingLogs
+    user, savedBooks, annotations, readingHistory, readingGoal, dailyReadingLogs, customBooks
   });
   latestStateRef.current = {
-    user, savedBooks, annotations, readingHistory, readingGoal, dailyReadingLogs
+    user, savedBooks, annotations, readingHistory, readingGoal, dailyReadingLogs, customBooks
   };
 
   // Sync reading goals and daily logs to localStorage
@@ -535,12 +475,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Real-time Cloud Sync & Auth Listener
   useEffect(() => {
     let unsubs: (() => void)[] = [];
+    let generation = 0;
 
     const unsubscribeAuth = initAuthListener(
       async (authUser, token) => {
+        const currentGeneration = ++generation;
+        const isCurrent = () => generation === currentGeneration;
         setUser(authUser);
+        setSubscription(FREE_SUBSCRIPTION);
+        setSubscriptionOwner(null);
+        setCustomBooks([]);
         setAccessToken(token);
-        setIsLoading(false);
+        setIsLoading(true);
 
         // Clean up previous listeners
         unsubs.forEach(u => u());
@@ -550,6 +496,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSyncStatus('syncing');
 
           try {
+            await libraryReady.current;
+            const localCustomBooks = await documentBookStore.getAll(personalScope(authUser.uid));
+            if (!isCurrent()) return;
+            setCustomBooks(localCustomBooks);
+            setIsLoading(false);
             // Initial hydration — fetch from Firestore in parallel
             const [
               cloudBooks, cloudAnn, cloudHist, cloudGoal, cloudLogs,
@@ -565,6 +516,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               fetchCustomBooksFromCloud(authUser.uid),
               fetchCatalogBooksFromCloud(),
             ]);
+            if (!isCurrent()) return;
 
             // Merge Saved Books
             if (cloudBooks.length > 0) {
@@ -609,27 +561,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // Security Week 1 — Firestore is source of truth for subscription
             // Override localStorage if Firestore has data (prevents local manipulation)
-            if (cloudSubscription) {
-              setSubscription(cloudSubscription);
-              localStorage.setItem(LOCAL_STORAGE_SUBSCRIPTION, JSON.stringify(cloudSubscription));
-            }
+            if (!isCurrent()) return;
+            setSubscription(cloudSubscription || FREE_SUBSCRIPTION);
+            setSubscriptionOwner(authUser.uid);
 
             // Restore custom books from cloud (cross-device)
             if (cloudCustomBooks.length > 0) {
+              await Promise.all(cloudCustomBooks.map(book => documentBookStore.save(personalScope(authUser.uid), book)));
+              if (!isCurrent()) return;
               setCustomBooks(prev => {
                 // Merge: cloud takes priority, keep local-only ones not in cloud
                 const cloudIds = new Set(cloudCustomBooks.map(b => b.id));
                 const localOnly = prev.filter(b => !cloudIds.has(b.id));
                 const merged = [...cloudCustomBooks, ...localOnly];
-                safeSaveLocalStorage(LOCAL_STORAGE_CUSTOM_BOOKS, merged);
                 return merged;
               });
             }
 
             // Restore admin-added catalog books from cloud
             if (cloudCatalogBooks.length > 0) {
+              await documentBookStore.replace('catalog', cloudCatalogBooks);
+              if (!isCurrent()) return;
               setCatalogBooks(cloudCatalogBooks);
-              safeSaveLocalStorage(LOCAL_STORAGE_CATALOG_BOOKS, cloudCatalogBooks);
             }
 
             const nowStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -639,42 +592,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // Attach real-time listeners for live cross-device updates
             const unsubBooks = listenSavedBooks(authUser.uid, (books) => {
+              if (!isCurrent()) return;
               setSavedBooks((books || []).filter(b => !LEGACY_SAMPLE_BOOK_IDS.has(b.bookId)));
             });
 
             const unsubAnn = listenAnnotations(authUser.uid, (anns) => {
+              if (!isCurrent()) return;
               setAnnotations(anns || []);
             });
 
             const unsubHist = listenReadingHistory(authUser.uid, (hist) => {
+              if (!isCurrent()) return;
               setReadingHistory((hist || []).filter(b => !LEGACY_SAMPLE_BOOK_IDS.has(b.bookId)));
             });
 
             // Real-time subscription listener — catches payment webhooks or admin changes
             const unsubSub = listenSubscription(authUser.uid, (sub) => {
-              if (sub) {
-                setSubscription(sub);
-                localStorage.setItem(LOCAL_STORAGE_SUBSCRIPTION, JSON.stringify(sub));
-              }
+              if (!isCurrent()) return;
+              setSubscription(sub || FREE_SUBSCRIPTION);
+              setSubscriptionOwner(authUser.uid);
             });
 
             // Real-time catalog listener — all users see catalog updates instantly
             const unsubCatalog = listenCatalogBooks((books) => {
+              if (!isCurrent()) return;
               setCatalogBooks(books);
-              safeSaveLocalStorage(LOCAL_STORAGE_CATALOG_BOOKS, books);
+              void documentBookStore.replace('catalog', books).catch(() => {
+                setLocalPersistenceError('Katalog belum tersimpan offline. Periksa ruang penyimpanan browser.');
+              });
             });
 
             unsubs = [unsubBooks, unsubAnn, unsubHist, unsubSub, unsubCatalog];
           } catch (e) {
+            if (!isCurrent()) return;
             console.error('Error syncing with cloud library:', e);
+            setIsLoading(false);
             setSyncStatus('error');
           }
         } else {
+          try {
+            await libraryReady.current;
+            const guestBooks = await documentBookStore.getAll(personalScope());
+            if (!isCurrent()) return;
+            setCustomBooks(guestBooks);
+            setIsLoading(false);
+          } catch {
+            if (isCurrent()) {
+              setIsLoading(false);
+              setLocalPersistenceError('Buku lokal belum dapat dimuat. Data lama tetap disimpan.');
+            }
+          }
           setSyncStatus('local_only');
         }
       },
       () => {
+        generation++;
         setUser(null);
+        setSubscription(FREE_SUBSCRIPTION);
+        setSubscriptionOwner(null);
         setAccessToken(null);
         setIsLoading(false);
         setSyncStatus('local_only');
@@ -682,6 +657,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     return () => {
+      generation++;
       unsubscribeAuth();
       unsubs.forEach(u => u());
     };
@@ -706,17 +682,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...latest.annotations.map(a => syncAnnotationToCloud(currentUser.uid, a)),
         ...latest.readingHistory.map(h => syncReadingHistoryToCloud(currentUser.uid, h)),
         syncReadingGoalToCloud(currentUser.uid, latest.readingGoal),
-        syncDailyReadingLogsToCloud(currentUser.uid, latest.dailyReadingLogs)
+        syncDailyReadingLogsToCloud(currentUser.uid, latest.dailyReadingLogs),
+        ...latest.customBooks.map(book => syncCustomBookToCloud(currentUser.uid, book))
       ]);
 
       // Pull latest from cloud
-      const [cloudBooks, cloudAnn, cloudHist, cloudGoal, cloudLogs] = await Promise.all([
+      const [cloudBooks, cloudAnn, cloudHist, cloudGoal, cloudLogs, cloudCustomBooks] = await Promise.all([
         fetchSavedBooksFromCloud(currentUser.uid),
         fetchAnnotationsFromCloud(currentUser.uid),
         fetchReadingHistoryFromCloud(currentUser.uid),
         fetchReadingGoalFromCloud(currentUser.uid),
-        fetchDailyReadingLogsFromCloud(currentUser.uid)
+        fetchDailyReadingLogsFromCloud(currentUser.uid),
+        fetchCustomBooksFromCloud(currentUser.uid)
       ]);
+      if (latestStateRef.current.user?.uid !== currentUser.uid) return;
+      await Promise.all(cloudCustomBooks.map(book => documentBookStore.save(personalScope(currentUser.uid), book)));
+      setCustomBooks(await documentBookStore.getAll(personalScope(currentUser.uid)));
 
       setSavedBooks(cloudBooks.filter(b => !LEGACY_SAMPLE_BOOK_IDS.has(b.bookId)));
       setAnnotations(cloudAnn);
@@ -750,6 +731,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOutUser = async () => {
     await logOut();
     setUser(null);
+    setSubscription(FREE_SUBSCRIPTION);
+    setSubscriptionOwner(null);
     setAccessToken(null);
     setSyncStatus('local_only');
   };
@@ -1019,8 +1002,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    if (isCompleted) {
+    if (recordCompletedBook(completedBookIds.current, book.id, progress)) {
       setCompletedCount(prev => prev + 1);
+      localStorage.setItem('f15_completed_book_ids', JSON.stringify([...completedBookIds.current]));
     }
   };
 
@@ -1042,6 +1026,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearStats = () => {
     setCompletedCount(0);
+    completedBookIds.current = new Set(readingHistory.filter(book => book.completed).map(book => book.bookId));
+    localStorage.setItem('f15_completed_book_ids', JSON.stringify([...completedBookIds.current]));
   };
 
   const setReadingGoalConfig = async (newGoal: Partial<ReadingGoal>) => {
@@ -1104,9 +1090,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const exportBackup = (): string => {
+  const exportBackup = async (): Promise<string> => {
+    await libraryReady.current;
+    const documentAssets = await exportBookAssets(customBooks);
     const backupData = {
-      version: '1.2',
+      version: '2.0',
       exportedAt: new Date().toISOString(),
       savedBooks,
       annotations,
@@ -1115,14 +1103,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       readingGoal,
       dailyReadingLogs,
       customBooks,
-      subscription
+      documentAssets,
+      completedBookIds: [...completedBookIds.current]
     };
     return JSON.stringify(backupData, null, 2);
   };
 
-  const importBackup = (jsonStr: string): boolean => {
+  const importBackup = async (jsonStr: string): Promise<boolean> => {
     try {
+      await libraryReady.current;
       const data = JSON.parse(jsonStr);
+      if (!validateReaderBackup(data)) return false;
+      if (data.customBooks !== undefined) {
+        // Legacy backups contain no image bytes. Refuse silent image loss.
+        await restoreBookAssets(data.customBooks, data.documentAssets || []);
+        await documentBookStore.replace(personalScope(user?.uid), data.customBooks);
+      }
       if (data && Array.isArray(data.savedBooks)) {
         setSavedBooks(data.savedBooks);
       }
@@ -1143,12 +1139,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       if (data && Array.isArray(data.customBooks)) {
         setCustomBooks(data.customBooks);
-        localStorage.setItem(LOCAL_STORAGE_CUSTOM_BOOKS, JSON.stringify(data.customBooks));
       }
-      if (data && data.subscription) {
-        setSubscription(data.subscription);
-        localStorage.setItem(LOCAL_STORAGE_SUBSCRIPTION, JSON.stringify(data.subscription));
-      }
+      completedBookIds.current = new Set([
+        ...(data.completedBookIds || []),
+        ...(data.readingHistory || []).filter((book: SavedBook) => book.completed).map((book: SavedBook) => book.bookId),
+      ]);
+      localStorage.setItem('f15_completed_book_ids', JSON.stringify([...completedBookIds.current]));
       return true;
     } catch (e) {
       console.error('Failed to import backup JSON:', e);
@@ -1194,8 +1190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         importBackup,
         subscription,
         isVip,
-        upgradeSubscription,
-        cancelSubscription,
+        localPersistenceError,
         customBooks,
         addCustomBook,
         deleteCustomBook,

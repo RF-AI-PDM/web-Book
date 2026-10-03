@@ -14,6 +14,7 @@ export interface DocumentAsset {
   fileName?: string;
   sourcePath?: string;
   sourceUrl?: string;
+  storagePath?: string;
   width?: number;
   height?: number;
   byteSize: number;
@@ -73,6 +74,7 @@ export interface Annotation {
   chapterId: string;
   chapterTitle: string;
   selectedText: string;
+  locator?: { textId: string; start: number; end: number; prefix: string; suffix: string };
   color: 'yellow' | 'green' | 'blue' | 'purple' | 'orange';
   note?: string;
   createdAt: string;

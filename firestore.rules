@@ -16,7 +16,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.admin == true ||
+        request.auth.token.get('admin', false) == true ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
@@ -26,7 +26,18 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read, write: if isOwner(userId) && isValidId(userId);
+      allow read: if isOwner(userId) && isValidId(userId);
+      // Entitlements are written only by a trusted server (Admin SDK) or admin.
+      allow create: if isValidId(userId) && (
+        (isOwner(userId) && !request.resource.data.keys().hasAny(['subscription']))
+        || (isAdmin() && request.resource.data.keys().hasOnly(['subscription', 'updatedAt']))
+      );
+      allow update: if isValidId(userId) && (
+        (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription']))
+        || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['subscription', 'updatedAt']))
+      );
+      allow delete: if isOwner(userId) && isValidId(userId)
+                    && !resource.data.keys().hasAny(['subscription']);
 
       match /savedBooks/{bookId} {
         allow read, write: if isOwner(userId) && isValidId(bookId);

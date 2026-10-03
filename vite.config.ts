@@ -3,13 +3,18 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig, Plugin } from 'vite';
 import dotenv from 'dotenv';
+import { translationRouter } from './src/server/translationRouter.ts';
+import express from 'express';
 
-dotenv.config();
+dotenv.config({ path: ['.env.botdong', '.env.local', '.env'] });
 
 function geminiApiPlugin(): Plugin {
   return {
     name: 'gemini-mentor-api',
     configureServer(server) {
+      const translationApp = express();
+      translationApp.use(translationRouter);
+      server.middlewares.use(translationApp);
       server.middlewares.use('/api/gemini/mentor', async (req, res) => {
         if (req.method !== 'POST') {
           res.statusCode = 405;
@@ -61,6 +66,19 @@ function geminiApiPlugin(): Plugin {
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss(), geminiApiPlugin()],
+    build: {
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              { name: 'firebase-firestore', test: /[\\/]@firebase[\\/]firestore[\\/]/, priority: 30 },
+              { name: 'firebase-auth', test: /[\\/]@firebase[\\/]auth[\\/]/, priority: 20 },
+              { name: 'react', test: /[\\/](react|react-dom|scheduler)[\\/]/, priority: 10 },
+            ],
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, '.'),
@@ -71,7 +89,7 @@ export default defineConfig(() => {
       host: '0.0.0.0',
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       hmr: process.env.DISABLE_HMR !== 'true',
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      watch: process.env.DISABLE_HMR === 'true' ? null : { ignored: ['**/artifacts/**'] },
     },
   };
 });

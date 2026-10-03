@@ -29,7 +29,7 @@ import {
   Crown,
   ExternalLink
 } from 'lucide-react';
-import { Book, Chapter, Annotation } from '../types';
+import { Book, Chapter, Annotation, ContentBlock } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { fetchBookChapterContent } from '../lib/firebase';
@@ -38,6 +38,9 @@ import { ReaderCustomizerModal } from './ReaderCustomizerModal';
 import { SharedHighlightsFeed } from './SharedHighlightsFeed';
 import { PomodoroTimer } from './PomodoroTimer';
 import { getChapterBlocks } from '../utils/documentContent';
+import { DocumentBlockRenderer } from './DocumentBlockRenderer';
+import { PdfTranslationWorkspace } from './PdfTranslationWorkspace';
+import { getAnnotationTextUnits, locateAnnotation, locatorFromSelection } from '../utils/annotationLocator';
 
 interface ReaderViewProps {
   book: Book;
@@ -97,6 +100,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
   // Floating text selection popover state
   const [selectedRangeText, setSelectedRangeText] = useState<string>('');
+  const selectedLocator = useRef<Annotation['locator'] | null>(null);
   const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
   const [noteInput, setNoteInput] = useState<string>('');
   const [isNoteInputOpen, setIsNoteInputOpen] = useState(false);
@@ -116,10 +120,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const [celebrationBanner, setCelebrationBanner] = useState<boolean>(false);
   const [isPomodoroOpen, setIsPomodoroOpen] = useState<boolean>(true);
   const [isOriginalPdfOpen, setIsOriginalPdfOpen] = useState(false);
+  const [isPdfTocOpen, setIsPdfTocOpen] = useState(true);
+  const [isPdfMentorOpen, setIsPdfMentorOpen] = useState(true);
 
   const readerContainerRef = useRef<HTMLDivElement>(null);
 
   const currentChapter: Chapter = book.chapters[currentChapterIndex] || book.chapters[0];
+  const isPdfFocusReader = book.fileType === '.pdf';
   const isCurrentChapterLocked = Boolean(
     book.isPremium && 
     !isVip && 
@@ -161,10 +168,9 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const activeParagraphs: string[] = (currentChapter && Array.isArray(currentChapter.content) && currentChapter.content.length > 0)
     ? currentChapter.content
     : (currentChapter && dynamicChapterContent[currentChapter.id]) || [];
-  const activeBlocks = currentChapter?.blocks?.length
+  const activeBlocks: ContentBlock[] = currentChapter?.blocks?.length
     ? getChapterBlocks(currentChapter)
     : activeParagraphs.map((text, index) => ({ id: `${currentChapter?.id || 'chapter'}-paragraph-${index}`, type: 'paragraph' as const, text }));
-  const assetUrls = new Map((book.assets || []).map(asset => [asset.id, asset.sourceUrl]));
 
   // Filter annotations for this book and current chapter
   const bookAnnotations = annotations.filter(a => a.bookId === book.id);
@@ -223,6 +229,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     }
 
     const range = selection.getRangeAt(0);
+    if (!readerContainerRef.current?.contains(range.commonAncestorContainer)) return;
+    selectedLocator.current = locatorFromSelection(range);
+    if (!selectedLocator.current) {
+      setPopoverPosition(null);
+      setSelectedRangeText('');
+      return;
+    }
     const rect = range.getBoundingClientRect();
 
     setSelectedRangeText(text);
@@ -242,6 +255,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       chapterId: currentChapter.id,
       chapterTitle: currentChapter.title,
       selectedText: selectedRangeText,
+      locator: selectedLocator.current || undefined,
       color,
       note: noteInput.trim() || undefined,
       isShared: isSharedOptIn, // Private by default, opt-in when checked
@@ -322,11 +336,63 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     ? 'bg-zinc-50 border-zinc-300 text-zinc-800'
     : 'bg-stone-900 border-stone-700 text-zinc-200';
 
+  const renderBlockText = (
+    _block: Exclude<ContentBlock, { type: 'image' } | { type: 'pageBreak' }>,
+    paragraph: string,
+    textId: string,
+  ) => {
+    const units = getAnnotationTextUnits(activeBlocks);
+    const ranges = chapterAnnotations.flatMap(ann => {
+      const range = locateAnnotation(ann, { id: textId, text: paragraph }, units);
+      return range ? [{ ...range, ann }] : [];
+    }).sort((a, b) => a.start - b.start || a.end - b.end);
+    const renderedContent: React.ReactNode[] = [];
+    let cursor = 0;
+    ranges.forEach(({ start, end, ann }) => {
+      if (start < cursor) return;
+      renderedContent.push(paragraph.slice(cursor, start));
+      const annotationTextColor = isPdfFocusReader ? 'text-slate-900' : 'text-yellow-100';
+      const colorBg = {
+        yellow: `bg-yellow-400/30 border-b-2 border-yellow-500 ${annotationTextColor}`,
+        green: `bg-emerald-400/30 border-b-2 border-emerald-500 ${annotationTextColor}`,
+        blue: `bg-sky-400/30 border-b-2 border-sky-500 ${annotationTextColor}`,
+        purple: `bg-purple-400/30 border-b-2 border-purple-500 ${annotationTextColor}`,
+        orange: `bg-orange-400/30 border-b-2 border-orange-500 ${annotationTextColor}`,
+      }[ann.color] || 'bg-yellow-400/30 border-b-2 border-yellow-500';
+
+      renderedContent.push(
+          <mark
+            key={ann.id}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveAnnotation(ann);
+              const rect = (e.target as HTMLElement).getBoundingClientRect();
+              setActiveAnnotationPos({ top: rect.top + window.scrollY - 60, left: Math.max(10, rect.left + window.scrollX) });
+            }}
+            className={`${colorBg} rounded cursor-pointer hover:opacity-80 transition-opacity font-normal`}
+            title="Klik untuk melihat/ubah catatan"
+          >
+            {ann.selectedText}
+          </mark>
+      );
+      cursor = end;
+    });
+    renderedContent.push(paragraph.slice(cursor));
+    return renderedContent;
+  };
+
+  const readerBackground = isPdfFocusReader
+    ? 'bg-[#14212a] text-slate-100'
+    : themeBgClasses;
+  const readerNavigation = isPdfFocusReader
+    ? 'bg-[#14212a]/95 border-slate-700/70 text-slate-100'
+    : themeNavClasses;
+
   return (
-    <div className={`min-h-screen ${themeBgClasses} transition-colors duration-200 pb-20 relative`} onMouseUp={handleMouseUp}>
+    <div className={`min-h-screen ${readerBackground} transition-colors duration-200 pb-20 relative`} onMouseUp={handleMouseUp}>
       {/* Sticky Reader Navigation Bar */}
-      <div className={`sticky top-0 z-30 w-full border-b backdrop-blur-md px-4 py-3 transition-colors ${themeNavClasses}`}>
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
+      <div className={`sticky top-0 z-30 w-full border-b backdrop-blur-md px-4 py-3 transition-colors ${readerNavigation}`}>
+        <div className={`${isPdfFocusReader ? 'max-w-7xl' : 'max-w-4xl'} mx-auto flex items-center justify-between gap-2`}>
           {/* Back button */}
           <button
             id="reader-back-btn"
@@ -572,8 +638,35 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         </div>
       </div>
 
+      {/* Mode fokus PDF: navigasi bab dan mentor diletakkan di tepi agar halaman tetap menjadi pusat perhatian. */}
+      <div className={isPdfFocusReader ? 'mx-auto grid max-w-[1500px] grid-cols-1 gap-5 px-4 py-6 lg:grid-cols-[230px_minmax(0,1fr)_280px] lg:items-start' : ''}>
+        {isPdfFocusReader && (
+          <aside className={`hidden lg:sticky lg:top-24 lg:block rounded-2xl border border-slate-700/80 bg-[#192a34] p-3 shadow-2xl shadow-black/10 ${isPdfTocOpen ? '' : 'w-fit'}`}>
+            <div className="mb-3 flex items-center justify-between gap-2 px-1">
+              {isPdfTocOpen && <h2 className="text-sm font-semibold text-slate-100">Daftar isi</h2>}
+              <button onClick={() => setIsPdfTocOpen(open => !open)} className="ml-auto rounded-lg p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white" aria-label={isPdfTocOpen ? 'Ciutkan daftar isi' : 'Buka daftar isi'}>
+                <ListOrdered size={16} />
+              </button>
+            </div>
+            {isPdfTocOpen && (
+              <nav aria-label="Daftar isi PDF" className="space-y-1">
+                {book.chapters.map((chapter, index) => (
+                  <button
+                    key={chapter.id}
+                    onClick={() => setCurrentChapterIndex(index)}
+                    className={`w-full rounded-xl px-3 py-2 text-left text-xs transition-colors ${index === currentChapterIndex ? 'bg-teal-400/15 text-teal-200 ring-1 ring-teal-300/30' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
+                  >
+                    <span className="mr-2 font-mono text-[10px] opacity-65">{String(chapter.number).padStart(2, '0')}</span>
+                    <span className="line-clamp-2">{chapter.title}</span>
+                  </button>
+                ))}
+              </nav>
+            )}
+          </aside>
+        )}
+
       {/* Main Content Body */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-8 pb-16">
+      <main className={isPdfFocusReader ? 'min-w-0 rounded-[3px] bg-[#fffdf8] px-6 py-10 text-slate-900 shadow-2xl shadow-black/30 sm:px-12 lg:px-16' : 'max-w-3xl mx-auto px-4 sm:px-6 pt-8 pb-16'}>
         {/* Daily Goal Celebration Banner */}
         {celebrationBanner && (
           <div className="mb-6 p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-200 text-xs flex items-center justify-between shadow-lg animate-in fade-in slide-in-from-top-2">
@@ -680,19 +773,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-orange-500/30 bg-orange-500/10 text-xs font-semibold text-orange-500 hover:bg-orange-500/20 transition-colors cursor-pointer"
             >
               <ExternalLink size={14} />
-              {isOriginalPdfOpen ? 'Sembunyikan halaman PDF asli' : 'Tampilkan halaman PDF asli beserta gambar'}
+              {isOriginalPdfOpen ? 'Tutup PDF asli + BotDong.read' : 'Buka PDF asli + BotDong.read'}
             </button>
           )}
         </div>
 
         {isOriginalPdfOpen && book.sourceUrl && (
-          <section className="mb-10 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
-            <iframe
-              title={`PDF asli ${book.title}`}
-              src={`${book.sourceUrl}#view=FitH`}
-              className="h-[72vh] min-h-[34rem] w-full"
-            />
-          </section>
+          <PdfTranslationWorkspace book={book} onClose={() => setIsOriginalPdfOpen(false)} />
         )}
 
         {/* Active Chapter Heading */}
@@ -783,77 +870,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
                   (Tidak ada teks yang dapat dimuat untuk bab ini).
                 </div>
               ) : (
-                activeBlocks.map((block, pIdx) => {
-                  if (block.type === 'image') {
-                    const sourceUrl = assetUrls.get(block.assetId);
-                    if (!sourceUrl) return null;
-                    return (
-                      <figure key={block.id} className="my-8 overflow-hidden rounded-2xl border border-black/10 bg-black/5 p-2">
-                        <img src={sourceUrl} alt={block.alt} className="mx-auto max-h-[34rem] w-auto max-w-full rounded-xl object-contain" />
-                        {(block.caption || block.alt) && <figcaption className="px-2 pt-2 text-center text-xs opacity-65">{block.caption || block.alt}</figcaption>}
-                      </figure>
-                    );
-                  }
-
-                  const paragraph = block.type === 'paragraph' ? block.text :
-                    block.type === 'heading' ? block.text :
-                    block.type === 'quote' ? block.text :
-                    block.type === 'list' ? block.items.join(' · ') : '';
-                  if (!paragraph) return null;
-                  let renderedContent: React.ReactNode = paragraph;
-
-                  chapterAnnotations.forEach((ann) => {
-                    if (paragraph.includes(ann.selectedText)) {
-                      const parts = paragraph.split(ann.selectedText);
-                      const colorBg = {
-                        yellow: 'bg-yellow-400/30 border-b-2 border-yellow-500 text-yellow-100',
-                        green: 'bg-emerald-400/30 border-b-2 border-emerald-500 text-emerald-100',
-                        blue: 'bg-sky-400/30 border-b-2 border-sky-500 text-sky-100',
-                        purple: 'bg-purple-400/30 border-b-2 border-purple-500 text-purple-100',
-                        orange: 'bg-orange-400/30 border-b-2 border-orange-500 text-orange-100',
-                      }[ann.color] || 'bg-yellow-400/30 border-b-2 border-yellow-500';
-
-                      renderedContent = (
-                        <>
-                          {parts[0]}
-                          <mark
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveAnnotation(ann);
-                              const rect = (e.target as HTMLElement).getBoundingClientRect();
-                              setActiveAnnotationPos({
-                                top: rect.top + window.scrollY - 60,
-                                left: Math.max(10, rect.left + window.scrollX),
-                              });
-                            }}
-                            className={`${colorBg} px-1 rounded cursor-pointer hover:opacity-80 transition-opacity font-normal inline-block`}
-                            title="Klik untuk melihat/ubah catatan"
-                          >
-                            {ann.selectedText}
-                            {ann.note && (
-                              <span className="ml-1 text-[10px] align-super text-orange-400 font-bold">
-                                💬
-                              </span>
-                            )}
-                          </mark>
-                          {parts[1]}
-                        </>
-                      );
-                    }
-                  });
-
-                  return (
-                    <p key={block.id || pIdx} className={`leading-relaxed text-justify sm:text-left ${block.type === 'heading' ? 'text-xl font-bold' : block.type === 'quote' ? 'border-l-4 border-orange-500 pl-4 font-serif italic' : ''}`}>
-                      {renderedContent}
-                    </p>
-                  );
-                })
+                <DocumentBlockRenderer bookId={book.id} blocks={activeBlocks} assets={book.assets} renderText={renderBlockText} />
               )}
             </div>
 
             {/* Action Item Card */}
             {currentChapter.actionItem && (
-              <div className="mt-10 p-5 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 text-emerald-300 space-y-1 text-xs sm:text-sm">
+              <div className={`mt-10 p-5 rounded-2xl border border-emerald-500/30 space-y-1 text-xs sm:text-sm ${isPdfFocusReader ? 'bg-emerald-50 text-emerald-950' : 'bg-emerald-950/20 text-emerald-300'}`}>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
                   💡 Langkah Aksi Nyata (Action Item):
                 </span>
@@ -898,6 +921,43 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             </button>
           )}
         </div>
+      </main>
+
+        {isPdfFocusReader && (
+          <aside className="hidden lg:sticky lg:top-24 lg:block">
+            <section className="overflow-hidden rounded-2xl border border-slate-700/80 bg-[#192a34] shadow-2xl shadow-black/15">
+              <div className="flex items-center justify-between border-b border-slate-700/80 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-teal-300" />
+                  <h2 className="text-sm font-semibold text-slate-100">Tanya buku</h2>
+                </div>
+                <button onClick={() => setIsPdfMentorOpen(open => !open)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-700 hover:text-white" aria-label={isPdfMentorOpen ? 'Ciutkan Tanya buku' : 'Buka Tanya buku'}>
+                  <ChevronDown size={16} className={isPdfMentorOpen ? '' : '-rotate-90'} />
+                </button>
+              </div>
+              {isPdfMentorOpen && (
+                <div className="space-y-4 p-4">
+                  <p className="text-xs leading-5 text-slate-300">
+                    Ajukan pertanyaan tentang bab ini, atau pilih kutipan untuk mendapatkan penjelasan yang lebih dalam.
+                  </p>
+                  <div className="rounded-xl border border-teal-300/15 bg-teal-300/10 p-3 text-xs leading-5 text-teal-50">
+                    Sedang membaca: <span className="font-semibold">Bab {currentChapter.number}, {currentChapter.title}</span>
+                  </div>
+                  <button
+                    onClick={() => onOpenAIMentor(currentChapter.title)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-400 px-3 py-2.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-teal-300"
+                  >
+                    <MessageSquare size={15} />
+                    Tanya tentang bab ini
+                  </button>
+                  <p className="border-t border-slate-700 pt-3 text-[11px] leading-4 text-slate-400">
+                    Sorot teks untuk menambah catatan atau mengirim kutipan langsung ke Mentor AI.
+                  </p>
+                </div>
+              )}
+            </section>
+          </aside>
+        )}
       </div>
 
       {/* FLOATING TEXT SELECTION ANNOTATION POPOVER */}

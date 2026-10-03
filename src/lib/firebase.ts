@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { Annotation, SavedBook, SharedHighlight, ReadingGoal } from '../types';
+import { syncBookAssets } from './documentAssetCloud';
 
 export const app = initializeApp(firebaseConfig);
 export const db = (firebaseConfig as any).firestoreDatabaseId 
@@ -394,16 +395,6 @@ export async function fetchDailyReadingLogsFromCloud(userId: string): Promise<Re
 
 import { SubscriptionInfo, Book, Chapter } from '../types';
 
-export async function syncSubscriptionToCloud(userId: string, subscription: SubscriptionInfo): Promise<void> {
-  const path = `users/${userId}`;
-  try {
-    const docRef = doc(db, 'users', userId);
-    await setDoc(docRef, { subscription, updatedAt: new Date().toISOString() }, { merge: true });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
-  }
-}
-
 export async function fetchSubscriptionFromCloud(userId: string): Promise<SubscriptionInfo | null> {
   try {
     const docRef = doc(db, 'users', userId);
@@ -428,6 +419,7 @@ export function listenSubscription(userId: string, callback: (sub: SubscriptionI
     }
   }, (err) => {
     console.warn('Subscription listener warning:', err.message);
+    callback(null);
   });
 }
 
@@ -436,6 +428,10 @@ export function listenSubscription(userId: string, callback: (sub: SubscriptionI
 export async function syncCustomBookToCloud(userId: string, book: Book): Promise<void> {
   const path = `users/${userId}/customBooks/${book.id}`;
   try {
+    if (book.assets?.length) {
+      const cloud = await import('./firebaseStorage');
+      book = await syncBookAssets(book, `users/${userId}/customBooks`, { upload: cloud.uploadDocumentAsset, download: cloud.downloadDocumentAsset });
+    }
     const docRef = doc(db, 'users', userId, 'customBooks', book.id);
     
     // 1. Sync every chapter into its own subcollection document
@@ -444,7 +440,7 @@ export async function syncCustomBookToCloud(userId: string, book: Book): Promise
       await Promise.all(
         book.chapters.map(ch => {
           const chDocRef = doc(db, 'users', userId, 'customBooks', book.id, 'chapters', ch.id);
-          return setDoc(chDocRef, ch, { merge: true });
+          return setDoc(chDocRef, JSON.parse(JSON.stringify(ch)));
         })
       );
     }
@@ -471,7 +467,7 @@ export async function syncCustomBookToCloud(userId: string, book: Book): Promise
       hasSubcollectionChapters: true
     };
 
-    await setDoc(docRef, bookToSave, { merge: true });
+    await setDoc(docRef, JSON.parse(JSON.stringify(bookToSave)));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -480,16 +476,17 @@ export async function syncCustomBookToCloud(userId: string, book: Book): Promise
 export async function deleteCustomBookFromCloud(userId: string, bookId: string): Promise<void> {
   const path = `users/${userId}/customBooks/${bookId}`;
   try {
+    const bookDoc = await getDoc(doc(db, 'users', userId, 'customBooks', bookId));
+    if (bookDoc.data()?.assets?.length) {
+      const { deleteCloudBookAssets } = await import('./firebaseStorage');
+      await deleteCloudBookAssets(`users/${userId}/customBooks`, bookId);
+    }
     const docRef = doc(db, 'users', userId, 'customBooks', bookId);
     
     // Clean up subcollection chapters first to prevent orphaned docs
-    try {
-      const chaptersCol = collection(db, 'users', userId, 'customBooks', bookId, 'chapters');
-      const chSnap = await getDocs(chaptersCol);
-      await Promise.all(chSnap.docs.map(d => deleteDoc(d.ref)));
-    } catch (e) {
-      console.warn('Could not clean up custom book chapters subcollection:', e);
-    }
+    const chaptersCol = collection(db, 'users', userId, 'customBooks', bookId, 'chapters');
+    const chSnap = await getDocs(chaptersCol);
+    await Promise.all(chSnap.docs.map(d => deleteDoc(d.ref)));
 
     await deleteDoc(docRef);
   } catch (error) {
@@ -534,6 +531,10 @@ export async function fetchCustomBooksFromCloud(userId: string): Promise<Book[]>
 export async function syncCatalogBookToCloud(book: Book): Promise<void> {
   const path = `catalog/${book.id}`;
   try {
+    if (book.assets?.length) {
+      const cloud = await import('./firebaseStorage');
+      book = await syncBookAssets(book, 'catalog', { upload: cloud.uploadDocumentAsset, download: cloud.downloadDocumentAsset });
+    }
     const docRef = doc(db, 'catalog', book.id);
     
     // 1. Sync every chapter into its own subcollection document
@@ -541,7 +542,7 @@ export async function syncCatalogBookToCloud(book: Book): Promise<void> {
       await Promise.all(
         book.chapters.map(ch => {
           const chDocRef = doc(db, 'catalog', book.id, 'chapters', ch.id);
-          return setDoc(chDocRef, ch, { merge: true });
+          return setDoc(chDocRef, JSON.parse(JSON.stringify(ch)));
         })
       );
     }
@@ -566,7 +567,7 @@ export async function syncCatalogBookToCloud(book: Book): Promise<void> {
       hasSubcollectionChapters: true
     };
 
-    await setDoc(docRef, bookToSave, { merge: true });
+    await setDoc(docRef, JSON.parse(JSON.stringify(bookToSave)));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -575,16 +576,17 @@ export async function syncCatalogBookToCloud(book: Book): Promise<void> {
 export async function deleteCatalogBookFromCloud(bookId: string): Promise<void> {
   const path = `catalog/${bookId}`;
   try {
+    const bookDoc = await getDoc(doc(db, 'catalog', bookId));
+    if (bookDoc.data()?.assets?.length) {
+      const { deleteCloudBookAssets } = await import('./firebaseStorage');
+      await deleteCloudBookAssets('catalog', bookId);
+    }
     const docRef = doc(db, 'catalog', bookId);
     
     // Clean up subcollection chapters first
-    try {
-      const chaptersCol = collection(db, 'catalog', bookId, 'chapters');
-      const chSnap = await getDocs(chaptersCol);
-      await Promise.all(chSnap.docs.map(d => deleteDoc(d.ref)));
-    } catch (e) {
-      console.warn('Could not clean up catalog chapters subcollection:', e);
-    }
+    const chaptersCol = collection(db, 'catalog', bookId, 'chapters');
+    const chSnap = await getDocs(chaptersCol);
+    await Promise.all(chSnap.docs.map(d => deleteDoc(d.ref)));
 
     await deleteDoc(docRef);
   } catch (error) {

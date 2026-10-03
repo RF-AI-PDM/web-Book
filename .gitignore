@@ -2,6 +2,7 @@ node_modules/
 build/
 dist/
 coverage/
+artifacts/reader-verification/java/
 .DS_Store
 *.log
 .env*

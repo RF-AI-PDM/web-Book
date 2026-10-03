@@ -1,4 +1,5 @@
-import { Book, Chapter, ContentBlock, DocumentAsset } from '../types';
+import { Book, Chapter, ContentBlock, DocumentAsset, ExtractionDiagnostics } from '../types';
+import { reconstructPdfPage } from './pdfLayout';
 
 // mammoth, pdfjs-dist, and jszip are heavy (they'd otherwise be the single
 // largest chunk of the main bundle) and are only ever needed when a user
@@ -32,6 +33,8 @@ export interface ParsedDocumentResult {
   fileName: string;
   fileType: string;
   assets?: DocumentAsset[];
+  assetBlobs?: Map<string, Blob>;
+  diagnostics?: ExtractionDiagnostics;
 }
 
 /**
@@ -175,24 +178,43 @@ export function convertRawTextToChapters(
  * Extract text from PDF File using pdfjsLib
  */
 export async function parsePdfFile(file: File): Promise<string> {
+  return (await parsePdfDocument(file)).text;
+}
+
+async function parsePdfDocument(file: File, signal?: AbortSignal): Promise<{ text: string; pages: number; diagnostics: ExtractionDiagnostics }> {
   const pdfjsLib = await loadPdfjs();
   const arrayBuffer = await file.arrayBuffer();
   const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  const abort = () => { void loadingTask.destroy(); };
+  signal?.addEventListener('abort', abort, { once: true });
+  try {
+  signal?.throwIfAborted();
   const pdfDoc = await loadingTask.promise;
   const numPages = pdfDoc.numPages;
   let fullText = '';
+  let pagesWithoutText = 0;
+  const warnings = new Set<string>();
+  warnings.add('Ilustrasi dan tabel PDF belum diekstrak; gunakan dokumen sumber untuk memeriksa detail visual.');
+  if (numPages > 500) throw new Error('PDF maksimal 500 halaman. Pisahkan dokumen menjadi beberapa file.');
 
   for (let i = 1; i <= numPages; i++) {
+    signal?.throwIfAborted();
     const page = await pdfDoc.getPage(i);
     const textContent = await page.getTextContent();
-    const pageStrings = textContent.items
-      .map((item: any) => item.str)
-      .join(' ');
+    const layout = reconstructPdfPage(textContent.items);
+    if (!layout.text.trim()) pagesWithoutText++;
+    layout.warnings.forEach(warning => warnings.add(warning));
     
-    fullText += `\n\n[Halaman ${i}]\n` + pageStrings;
+    fullText += layout.text ? `\n\n${layout.text}` : '';
+    page.cleanup();
   }
-
-  return fullText.trim();
+  if (pagesWithoutText) warnings.add(`${pagesWithoutText} halaman tanpa teks digital; halaman scan membutuhkan OCR.`);
+  return { text: fullText.trim(), pages: numPages, diagnostics: { warnings: [...warnings], imageCount: 0,
+    pagesWithoutText, quality: pagesWithoutText ? 'low' : 'medium' } };
+  } finally {
+    signal?.removeEventListener('abort', abort);
+    await loadingTask.destroy();
+  }
 }
 
 /**
@@ -222,6 +244,7 @@ export async function parseEpubFile(file: File): Promise<{
   chapters: Chapter[];
   fullText: string;
   assets: DocumentAsset[];
+  assetBlobs: Map<string, Blob>;
 }> {
   const { default: JSZip } = await import('jszip');
   const arrayBuffer = await file.arrayBuffer();
@@ -286,6 +309,7 @@ export async function parseEpubFile(file: File): Promise<{
 
   const parsedChapters: Chapter[] = [];
   const assets: DocumentAsset[] = [];
+  const assetBlobs = new Map<string, Blob>();
   let fullTextCombined = '';
   let chapterIndex = 1;
 
@@ -296,36 +320,23 @@ export async function parseEpubFile(file: File): Promise<{
     const xhtmlStr = await chapterFile.async('text');
     const doc = parser.parseFromString(xhtmlStr, 'text/html');
 
-    // Extract title if available
     let heading = doc.querySelector('h1, h2, h3, title')?.textContent?.trim();
-    if (!heading || heading.length > 90) {
-      heading = `Bagian ${chapterIndex}`;
-    }
+    if (!heading || heading.length > 90) heading = `Bagian ${chapterIndex}`;
 
-    // Extract readable paragraphs and embedded illustrations. Image blobs are
-    // kept local to the open book, so they never need an external host.
     const paragraphs: string[] = [];
     const blocks: ContentBlock[] = [];
-    const elements = doc.querySelectorAll('p, blockquote, li, div');
-    elements.forEach(el => {
-      if (el.tagName.toLowerCase() === 'div' && el.querySelector('p')) {
-        return;
-      }
-      const text = el.textContent?.trim();
-      if (text && text.length > 15) {
-        paragraphs.push(text);
-        blocks.push({ id: `epub-ch-${chapterIndex}-p-${paragraphs.length}`, type: 'paragraph', text });
-      }
-    });
+    let textBlockIndex = 0;
+    let imageIndex = 0;
 
-    const imageElements = doc.querySelectorAll('img[src]');
-    for (let imageIndex = 0; imageIndex < imageElements.length; imageIndex++) {
-      const image = imageElements[imageIndex];
+    const addImage = async (image: HTMLImageElement, caption?: string) => {
       const rawSource = image.getAttribute('src');
-      if (!rawSource || rawSource.startsWith('data:')) continue;
-      const imagePath = decodeURIComponent(new URL(rawSource, `https://epub.local/${itemPath}`).pathname.slice(1));
+      if (!rawSource || rawSource.startsWith('data:')) return;
+
+      const imageUrl = new URL(rawSource, `https://epub.local/${itemPath}`);
+      if (imageUrl.origin !== 'https://epub.local') return;
+      const imagePath = decodeURIComponent(imageUrl.pathname.replace(/^\/+/, ''));
       const imageFile = zip.file(imagePath);
-      if (!imageFile) continue;
+      if (!imageFile) return;
 
       const extension = imagePath.split('.').pop()?.toLowerCase();
       const mediaType = extension === 'png' ? 'image/png'
@@ -334,29 +345,78 @@ export async function parseEpubFile(file: File): Promise<{
         : extension === 'webp' ? 'image/webp'
         : 'image/jpeg';
       const blob = await imageFile.async('blob');
-      const assetId = `epub-ch-${chapterIndex}-image-${imageIndex + 1}`;
-      const sourceUrl = URL.createObjectURL(new Blob([blob], { type: mediaType }));
+      const assetId = `epub-ch-${chapterIndex}-image-${++imageIndex}`;
       const alt = image.getAttribute('alt')?.trim() || `Ilustrasi pada ${heading}`;
-      assets.push({ id: assetId, mediaType, fileName: imagePath.split('/').pop(), sourcePath: imagePath, sourceUrl, byteSize: blob.size });
-      blocks.push({ id: `${assetId}-block`, type: 'image', assetId, alt });
-    }
+      assets.push({ id: assetId, mediaType, fileName: imagePath.split('/').pop(), sourcePath: imagePath, byteSize: blob.size });
+      assetBlobs.set(assetId, blob);
+      blocks.push({ id: `${assetId}-block`, type: 'image', assetId, alt, caption });
+    };
 
-    if (paragraphs.length > 0) {
-      const chapterWords = paragraphs.reduce((acc, p) => acc + p.split(/\s+/).length, 0);
-      if (chapterWords > 20) {
-        parsedChapters.push({
-          id: `epub-ch-${chapterIndex}`,
-          number: chapterIndex,
-          title: heading,
-          readTimeMinutes: Math.max(3, Math.round(chapterWords / 150)),
-          content: paragraphs,
-          blocks,
-          keyQuote: paragraphs[0] ? paragraphs[0].slice(0, 140) + '...' : undefined,
-          actionItem: 'Tandai wawasan kunci dari bab ini untuk diterapkan.'
-        });
-        chapterIndex++;
-        fullTextCombined += `\n\n# ${heading}\n` + paragraphs.join('\n\n');
+    const addParagraph = (text: string) => {
+      if (!text) return;
+      paragraphs.push(text);
+      blocks.push({ id: `epub-ch-${chapterIndex}-paragraph-${++textBlockIndex}`, type: 'paragraph', text });
+    };
+
+    const walk = async (element: Element): Promise<void> => {
+      const tag = element.tagName.toLowerCase();
+      if (['script', 'style', 'noscript', 'template', 'svg'].includes(tag)) return;
+
+      const text = element.textContent?.trim() || '';
+      if (/^h[1-3]$/.test(tag) && text) {
+        blocks.push({ id: `epub-ch-${chapterIndex}-heading-${++textBlockIndex}`, type: 'heading', level: Number(tag[1]) as 1 | 2 | 3, text });
+        return;
       }
+      if (tag === 'p') {
+        addParagraph(text);
+        return;
+      }
+      if (tag === 'blockquote' && text) {
+        paragraphs.push(text);
+        blocks.push({ id: `epub-ch-${chapterIndex}-quote-${++textBlockIndex}`, type: 'quote', text });
+        return;
+      }
+      if (tag === 'ol' || tag === 'ul') {
+        const items = Array.from(element.children)
+          .filter(child => child.tagName.toLowerCase() === 'li')
+          .map(child => child.textContent?.trim() || '')
+          .filter(Boolean);
+        if (items.length > 0) {
+          paragraphs.push(...items);
+          blocks.push({ id: `epub-ch-${chapterIndex}-list-${++textBlockIndex}`, type: 'list', ordered: tag === 'ol', items });
+        }
+        return;
+      }
+      if (tag === 'img') {
+        await addImage(element as HTMLImageElement);
+        return;
+      }
+      if (tag === 'figure') {
+        const image = element.querySelector('img[src]');
+        const caption = element.querySelector('figcaption')?.textContent?.trim();
+        if (image) await addImage(image as HTMLImageElement, caption);
+        return;
+      }
+      for (const child of Array.from(element.children)) await walk(child);
+    };
+
+    const body = doc.body || doc.documentElement;
+    for (const child of Array.from(body.children)) await walk(child);
+
+    if (blocks.length > 0) {
+      const chapterWords = paragraphs.reduce((acc, p) => acc + p.split(/\s+/).length, 0);
+      parsedChapters.push({
+        id: `epub-ch-${chapterIndex}`,
+        number: chapterIndex,
+        title: heading,
+        readTimeMinutes: Math.max(3, Math.round(chapterWords / 150)),
+        content: paragraphs,
+        blocks,
+        keyQuote: paragraphs[0] ? paragraphs[0].slice(0, 140) + '...' : undefined,
+        actionItem: 'Tandai wawasan kunci dari bab ini untuk diterapkan.'
+      });
+      chapterIndex++;
+      fullTextCombined += `\n\n# ${heading}\n` + paragraphs.join('\n\n');
     }
   }
 
@@ -366,14 +426,17 @@ export async function parseEpubFile(file: File): Promise<{
     description,
     chapters: parsedChapters,
     fullText: fullTextCombined.trim(),
-    assets
+    assets,
+    assetBlobs,
   };
 }
 
 /**
  * Main parser entry point supporting PDF, DOCX, EPUB, TXT, MD
  */
-export async function parseUploadedDocument(file: File): Promise<ParsedDocumentResult> {
+export async function parseUploadedDocument(file: File, options: { signal?: AbortSignal } = {}): Promise<ParsedDocumentResult> {
+  options.signal?.throwIfAborted();
+  if (file.size > 100 * 1024 * 1024) throw new Error('File maksimal 100 MB. Pisahkan dokumen besar sebelum mengunggah.');
   const fileName = file.name;
   const extension = fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
   let rawText = '';
@@ -382,9 +445,15 @@ export async function parseUploadedDocument(file: File): Promise<ParsedDocumentR
   let customSummary: string | undefined;
   let customChapters: Chapter[] | undefined;
   let assets: DocumentAsset[] | undefined;
+  let assetBlobs: Map<string, Blob> | undefined;
+  let diagnostics: ExtractionDiagnostics | undefined;
+  let totalPages: number | undefined;
 
   if (extension === '.pdf') {
-    rawText = await parsePdfFile(file);
+    const pdf = await parsePdfDocument(file, options.signal);
+    rawText = pdf.text;
+    diagnostics = pdf.diagnostics;
+    totalPages = pdf.pages;
   } else if (extension === '.docx' || extension === '.doc') {
     rawText = await parseDocxFile(file);
   } else if (extension === '.epub') {
@@ -396,6 +465,7 @@ export async function parseUploadedDocument(file: File): Promise<ParsedDocumentR
       customChapters = epubResult.chapters;
     }
     assets = epubResult.assets;
+    assetBlobs = epubResult.assetBlobs;
     rawText = epubResult.fullText;
   } else if (['.txt', '.md', '.markdown', '.json', '.html'].includes(extension)) {
     rawText = await parsePlainTextFile(file);
@@ -407,6 +477,7 @@ export async function parseUploadedDocument(file: File): Promise<ParsedDocumentR
       throw new Error(`Format file "${extension}" tidak didukung. Harap gunakan PDF, DOCX, EPUB, TXT, atau Markdown.`);
     }
   }
+  options.signal?.throwIfAborted();
 
   if ((!rawText || rawText.trim().length < 20) && (!customChapters || customChapters.length === 0)) {
     throw new Error('Dokumen tampaknya kosong atau berformat gambar tanpa layer teks. Harap gunakan file dengan teks digital.');
@@ -439,12 +510,14 @@ export async function parseUploadedDocument(file: File): Promise<ParsedDocumentR
     category: 'Buku Unggahan',
     summary,
     chapters,
-    totalPagesOrSections: chapters.length,
+    totalPagesOrSections: totalPages || chapters.length,
     wordCount,
     estimatedReadTimeMinutes,
     fileName,
     fileType: extension,
-    assets
+    assets,
+    assetBlobs,
+    diagnostics: diagnostics || { warnings: [], imageCount: assets?.length || 0, pagesWithoutText: 0, quality: 'high' },
   };
 }
 
@@ -500,6 +573,8 @@ export function createF15BookFromUpload(
     uploadedAt: new Date().toISOString(),
     fileType: doc.fileType,
     price: options?.price,
-    assets: options?.assets || doc.assets
+    assets: options?.assets || doc.assets,
+    documentSchemaVersion: doc.chapters.some(chapter => chapter.blocks?.length) ? 2 : 1,
+    extractionDiagnostics: doc.diagnostics
   };
 }

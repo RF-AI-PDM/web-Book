@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Upload, 
   Check, 
@@ -19,6 +19,9 @@ import {
   ParsedDocumentResult, 
   createF15BookFromUpload 
 } from '../utils/documentParser';
+import { persistDocumentAssets } from '../lib/documentAssetPersistence';
+import { deleteDocumentAssetsForBook } from '../lib/documentAssetStore';
+import { DocumentPreview } from './DocumentPreview';
 
 interface UploadBookModalProps {
   isOpen: boolean;
@@ -67,6 +70,13 @@ export const UploadBookModal: React.FC<UploadBookModalProps> = ({
   } = useAuth();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const parseController = useRef<AbortController | null>(null);
+  const saving = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  useEffect(() => {
+    if (!isOpen) parseController.current?.abort();
+    return () => { parseController.current?.abort(); };
+  }, [isOpen]);
   const [dragActive, setDragActive] = useState(false);
   const [parseStatus, setParseStatus] = useState<'idle' | 'parsing' | 'preview' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -84,6 +94,8 @@ export const UploadBookModal: React.FC<UploadBookModalProps> = ({
   if (!isOpen) return null;
 
   const handleReset = () => {
+    if (saving.current) return;
+    parseController.current?.abort();
     setParseStatus('idle');
     setParsedDoc(null);
     setErrorMessage(null);
@@ -91,6 +103,9 @@ export const UploadBookModal: React.FC<UploadBookModalProps> = ({
   };
 
   const handleFileProcess = async (file: File) => {
+    parseController.current?.abort();
+    const controller = new AbortController();
+    parseController.current = controller;
     // Check personal upload quota for free tier
     if (uploadTarget === 'personal' && !canUploadMoreCustomBooks) {
       if (onOpenSubscriptionModal) {
@@ -103,13 +118,15 @@ export const UploadBookModal: React.FC<UploadBookModalProps> = ({
     setErrorMessage(null);
 
     try {
-      const result = await parseUploadedDocument(file);
+      const result = await parseUploadedDocument(file, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       setParsedDoc(result);
       setTitle(result.title);
       setAuthor(result.author);
       setCategory(uploadTarget === 'personal' ? 'Buku Pribadi' : 'Pengembangan Diri');
       setParseStatus('preview');
     } catch (err: any) {
+      if (controller.signal.aborted) return;
       console.error('Error parsing document:', err);
       setErrorMessage(err.message || 'Gagal memproses file. Pastikan dokumen memiliki teks digital.');
       setParseStatus('error');
@@ -142,7 +159,10 @@ export const UploadBookModal: React.FC<UploadBookModalProps> = ({
   };
 
   const handleSaveBook = async () => {
-    if (!parsedDoc) return;
+    if (!parsedDoc || saving.current) return;
+    saving.current = true;
+    setIsSaving(true);
+    setErrorMessage(null);
 
     const newBook = createF15BookFromUpload(parsedDoc, {
       customCoverColor: selectedColor,
@@ -153,6 +173,9 @@ export const UploadBookModal: React.FC<UploadBookModalProps> = ({
       uploadedBy: uploadTarget === 'catalog' ? 'admin' : 'user'
     });
 
+    try {
+    await persistDocumentAssets(newBook.id, parsedDoc.assets, parsedDoc.assetBlobs);
+
     if (uploadTarget === 'catalog') {
       await addCatalogBook(newBook);
     } else {
@@ -161,6 +184,13 @@ export const UploadBookModal: React.FC<UploadBookModalProps> = ({
 
     setSavedCreatedBook(newBook);
     setParseStatus('success');
+    } catch (error) {
+      await deleteDocumentAssetsForBook(newBook.id).catch(() => {});
+      setErrorMessage(error instanceof Error ? error.message : 'Buku belum tersimpan. Periksa kapasitas penyimpanan dan coba lagi.');
+    } finally {
+      saving.current = false;
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -185,6 +215,7 @@ export const UploadBookModal: React.FC<UploadBookModalProps> = ({
             </div>
           </div>
           <button
+            disabled={isSaving}
             onClick={() => {
               handleReset();
               onClose();
@@ -311,6 +342,8 @@ export const UploadBookModal: React.FC<UploadBookModalProps> = ({
           {/* STEP 3: PREVIEW & CUSTOMIZE */}
           {parseStatus === 'preview' && parsedDoc && (
             <div className="space-y-4 animate-fadeIn">
+              <DocumentPreview document={parsedDoc} />
+              {errorMessage && <p role="alert" className="rounded-xl bg-red-950/30 p-3 text-sm text-red-300">{errorMessage}</p>}
               {/* Extraction Stat Summary */}
               <div className="p-3.5 bg-stone-900/90 border border-stone-800 rounded-2xl flex items-center justify-between text-xs">
                 <div className="flex items-center space-x-2 text-emerald-400">
@@ -470,6 +503,7 @@ export const UploadBookModal: React.FC<UploadBookModalProps> = ({
         {/* Footer Actions */}
         <div className="p-5 border-t border-stone-800 bg-[#0e0f14] flex items-center justify-between">
           <button
+            disabled={isSaving}
             onClick={() => {
               handleReset();
               onClose();
@@ -482,16 +516,18 @@ export const UploadBookModal: React.FC<UploadBookModalProps> = ({
           {parseStatus === 'preview' && (
             <div className="flex items-center space-x-2">
               <button
+                disabled={isSaving}
                 onClick={handleReset}
                 className="px-3.5 py-2 text-xs text-zinc-400 hover:text-white rounded-xl hover:bg-stone-800 transition-colors cursor-pointer"
               >
                 Ganti File
               </button>
               <button
+                disabled={isSaving}
                 onClick={handleSaveBook}
                 className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-orange-600/20 transition-all cursor-pointer"
               >
-                <span>Simpan Buku</span>
+                <span>{isSaving ? 'Menyimpan...' : 'Simpan Buku'}</span>
                 <Check size={14} />
               </button>
             </div>

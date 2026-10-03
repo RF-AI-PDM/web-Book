@@ -174,28 +174,38 @@ export const MyBooksView: React.FC<MyBooksViewProps> = ({
   }, [annotations, selectedBookFilter, searchQuery]);
 
   // Handle Export Backup JSON
-  const handleExportBackup = () => {
-    const jsonStr = exportBackup();
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `f15-library-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setBackupMessage('Cadangan berhasil diunduh ke perangkat Anda.');
-    setTimeout(() => setBackupMessage(null), 4000);
+  const handleExportBackup = async () => {
+    try {
+      setBackupMessage('Menyiapkan cadangan buku dan gambar...');
+      const jsonStr = await exportBackup();
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `f15-library-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setBackupMessage('Cadangan berhasil diunduh ke perangkat Anda.');
+      setTimeout(() => setBackupMessage(null), 4000);
+    } catch (error) {
+      setBackupMessage(error instanceof Error ? error.message : 'Gagal membuat cadangan.');
+    }
   };
 
   // Handle Import Backup JSON
   const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 150 * 1024 * 1024) {
+      setBackupMessage('File cadangan maksimal 150 MB.');
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const content = event.target?.result as string;
       if (content) {
-        const success = importBackup(content);
+        const success = await importBackup(content);
         if (success) {
           setBackupMessage('Cadangan data berhasil dipulihkan!');
         } else {
@@ -205,6 +215,7 @@ export const MyBooksView: React.FC<MyBooksViewProps> = ({
       }
     };
     reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (
@@ -1013,7 +1024,9 @@ export const MyBooksView: React.FC<MyBooksViewProps> = ({
                     <button
                       onClick={() => {
                         if (confirm(`Hapus buku "${b.title}" dari daftar unggahan Anda?`)) {
-                          deleteCustomBook(b.id);
+                          void deleteCustomBook(b.id).catch(error => {
+                            setBackupMessage(error instanceof Error ? error.message : 'Buku belum dapat dihapus. Coba lagi saat koneksi tersedia.');
+                          });
                         }
                       }}
                       className="p-2 text-zinc-500 hover:text-rose-400 hover:bg-stone-900 rounded-xl transition-colors cursor-pointer"

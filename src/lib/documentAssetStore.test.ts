@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import 'fake-indexeddb/auto';
 import type { DocumentAsset } from '../types';
-import { InMemoryDocumentAssetStore } from './documentAssetStore';
+import { IndexedDbDocumentAssetStore, InMemoryDocumentAssetStore } from './documentAssetStore';
 
 function makeAsset(overrides: Partial<DocumentAsset> = {}): DocumentAsset {
   return {
@@ -59,5 +60,35 @@ describe('InMemoryDocumentAssetStore', () => {
     await store.deleteAssetsForBook('book-1');
     expect(await store.getAsset('book-1', 'img-2')).toBeNull();
     expect(await store.getAsset('book-2', 'img-1')).not.toBeNull();
+  });
+});
+
+describe('IndexedDbDocumentAssetStore', () => {
+  it('keeps a Blob available to a fresh store instance without persisting its temporary URL', async () => {
+    const asset = makeAsset({ id: `reload-${crypto.randomUUID()}` });
+    const firstStore = new IndexedDbDocumentAssetStore();
+
+    await firstStore.saveAsset('book-after-reload', asset, new Blob(['offline illustration'], { type: 'image/png' }));
+
+    const reloadedStore = new IndexedDbDocumentAssetStore();
+    const restored = await reloadedStore.getAsset('book-after-reload', asset.id);
+
+    expect(restored?.sourceUrl).toBeUndefined();
+    expect(restored?.mediaType).toBe('image/png');
+    expect(await restored?.blob.text()).toBe('offline illustration');
+  });
+
+  it('removes only the selected book assets from IndexedDB', async () => {
+    const store = new IndexedDbDocumentAssetStore();
+    const suffix = crypto.randomUUID();
+    const firstAsset = makeAsset({ id: `first-${suffix}` });
+    const secondAsset = makeAsset({ id: `second-${suffix}` });
+
+    await store.saveAsset(`delete-${suffix}`, firstAsset, new Blob(['remove me']));
+    await store.saveAsset(`keep-${suffix}`, secondAsset, new Blob(['keep me']));
+    await store.deleteAssetsForBook(`delete-${suffix}`);
+
+    expect(await store.getAsset(`delete-${suffix}`, firstAsset.id)).toBeNull();
+    expect(await store.getAsset(`keep-${suffix}`, secondAsset.id)).not.toBeNull();
   });
 });

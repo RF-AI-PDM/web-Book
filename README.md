@@ -1,364 +1,142 @@
 # F15 Library
-<div align="center">
 
-Web app untuk membaca ringkasan buku dalam 15 menit — dengan reader (highlight & anotasi), AI Mentor bertenaga Gemini, pomodoro timer, reading goal & streak tracker, badge, shared highlights komunitas, serta export ke Google Workspace (Docs/Sheets/Gmail/Chat).
-# 📚 Evolusi Book
+F15 Library adalah aplikasi web berbahasa Indonesia untuk membaca intisari buku dalam sekitar 15 menit. Aplikasi ini menyediakan reader dengan highlight dan anotasi, AI Mentor Gemini, target serta streak membaca, pomodoro timer, lencana, community highlights, impor dokumen, dan ekspor ke Google Workspace.
 
-Dibangun dengan React 19 + Vite + TypeScript, awalnya digenerate dari Google AI Studio.
-**Platform membaca buku digital modern — Baca. Tumbuh. Berevolusi.**
+## Pratinjau
 
-## Stack
-[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-7.0-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
-[![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=flat-square&logo=vite)](https://vitejs.dev)
-[![Firebase](https://img.shields.io/badge/Firebase-12-FFCA28?style=flat-square&logo=firebase)](https://firebase.google.com)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss)](https://tailwindcss.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+![Halaman katalog F15 Library](assets/f15-library-catalog.png)
 
-- **Frontend:** React 19, Vite 8, Tailwind CSS 4, `lucide-react`, `motion`
-- **Backend runtime:** Express (`server.ts`) untuk production; dev server pakai middleware Vite
-- **AI:** Google Gemini (`@google/genai`) — dipanggil hanya dari server, API key tidak pernah diekspos ke client
-- **Data & Auth:** Firebase (Auth + Firestore) untuk sync antar perangkat
-- **Parsing dokumen:** `mammoth` (docx), `pdfjs-dist` (pdf)
-</div>
+## Teknologi
+
+- React 19, TypeScript, Vite 8, dan Tailwind CSS 4
+- Firebase Authentication dan Firestore untuk autentikasi serta sinkronisasi cloud
+- Express untuk server produksi dan endpoint AI
+- Google Gemini melalui `@google/genai` (server-side)
+- `mammoth` dan `pdfjs-dist` untuk membaca DOCX dan PDF
 
 ## Prasyarat
----
 
-- Node.js
-- pnpm (`npm install -g pnpm`)
-## 📖 Tentang Proyek
+- Node.js 22.12 atau lebih baru
+- pnpm 9 (`npm install -g pnpm`)
+- Proyek Firebase, bila ingin memakai login Google dan sinkronisasi cloud
+- Gemini API key, bila ingin respons AI Mentor dari Gemini
 
 ## Menjalankan secara lokal
-**Evolusi Book** adalah aplikasi web baca buku digital yang dirancang untuk mendorong kebiasaan membaca yang konsisten. Pengguna dapat membaca ringkasan buku-buku terlaris, membuat anotasi pribadi, melacak progres harian, serta mensinkronisasi data antar perangkat melalui cloud.
 
-1. Install dependencies:
-Dibangun dengan arsitektur **local-first** — aplikasi berjalan penuh tanpa koneksi internet, dengan sinkronisasi cloud opsional menggunakan Firebase.
+1. Instal dependensi.
 
-   ```sh
+   ```bash
    pnpm install
    ```
----
 
-2. Salin `.env.example` menjadi `.env.local`, lalu isi `GEMINI_API_KEY` dengan API key Gemini kamu. Tanpa key ini, AI Mentor akan berjalan dalam mode fallback simulasi.
-3. Jalankan app dalam mode dev:
-## ✨ Fitur Utama
+2. Salin contoh environment dan sesuaikan nilainya.
 
-   ```sh
+   ```powershell
+   Copy-Item .env.example .env.local
+   ```
+
+   Pada macOS/Linux gunakan `cp .env.example .env.local`.
+
+3. Isi `.env.local` sesuai kebutuhan.
+
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key
+   APP_URL=http://localhost:3000
+   # Opsional: UID Firebase yang boleh mengelola katalog
+   VITE_ADMIN_UIDS=uid_anda
+   ```
+
+   Jika `GEMINI_API_KEY` tidak disediakan, AI Mentor tetap berjalan memakai respons fallback. API key tidak dikirim ke browser.
+
+4. Tambahkan konfigurasi klien Firebase sebagai `firebase-applet-config.json` di root proyek. File ini diperlukan oleh aplikasi dan tidak disertakan di repositori.
+
+   ```json
+   {
+     "projectId": "your-project-id",
+     "appId": "your-app-id",
+     "apiKey": "your-firebase-web-api-key",
+     "authDomain": "your-project.firebaseapp.com",
+     "storageBucket": "your-project.firebasestorage.app",
+     "messagingSenderId": "your-sender-id"
+   }
+   ```
+
+5. Jalankan server pengembangan.
+
+   ```bash
    pnpm dev
    ```
-| Kategori | Fitur |
-|----------|-------|
-| 📖 **Reader** | Baca buku dengan highlight, anotasi warna-warni, dan progress tracker per bab |
-| 🤖 **AI Mentor** | Asisten pemikiran cerdas bertenaga Google Gemini Pro (Thinking Mode) |
-| 🎯 **Reading Goal** | Target membaca harian/mingguan, streak tracker, dan lencana prestasi |
-| ⏱️ **Pomodoro Timer** | Timer baca terfokus terintegrasi langsung di reader |
-| ☁️ **Cloud Sync** | Sinkronisasi real-time antar perangkat via Firebase Firestore |
-| 🌍 **Community** | Shared highlights — bagikan kutipan favorit ke komunitas pembaca |
-| 📤 **Workspace Export** | Export anotasi ke Google Docs, Sheets, Gmail, dan Chat |
-| 📁 **Upload Buku** | Import buku pribadi dalam format PDF, DOCX, dan EPUB |
-| 🌓 **Dark / Light Mode** | Toggle tema gelap/terang dengan transisi halus, persisten di localStorage |
-| 📱 **PWA Ready** | Installable sebagai Progressive Web App, support offline mode |
 
-   App berjalan di `http://localhost:3000`.
----
+   Buka [http://localhost:3000](http://localhost:3000).
 
-## Script yang tersedia
-## 🏗️ Arsitektur & Tech Stack
+## Firebase
 
-| Command | Keterangan |
-| --- | --- |
-| `pnpm dev` | Vite dev server (port 3000) |
-```
-┌─────────────────────────────────────────────────────────┐
-│                    CLIENT (React SPA)                    │
-│                                                         │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │  AuthContext │  │ ThemeContext  │  │  Components  │  │
-│  │  (App State) │  │ (UI Theme)   │  │  (UI Layer)  │  │
-│  └──────┬───────┘  └──────────────┘  └──────────────┘  │
-│         │                                               │
-│  ┌──────▼───────────────────────────────────┐           │
-│  │            lib/firebase.ts               │           │
-│  │  Auth · Firestore CRUD · Real-time Sync  │           │
-│  └──────────────────────────────────────────┘           │
-└────────────────────┬────────────────────────────────────┘
-                     │ POST /api/gemini/mentor
-┌────────────────────▼────────────────────────────────────┐
-│               SERVER (Express / Vite Plugin)             │
-│                                                         │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  src/server/gemini.ts  ←  GEMINI_API_KEY (env)  │   │
-│  │  Google Gemini Pro — server-only, key not leaked │   │
-│  └──────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────┐
-│                    FIREBASE CLOUD                        │
-│  Auth (Google OAuth)  ·  Firestore  ·  Security Rules   │
-└─────────────────────────────────────────────────────────┘
-```
+Untuk sinkronisasi dan Google Sign-In:
 
-### Stack Teknologi
+1. Aktifkan provider **Google** di Firebase Authentication.
+2. Tambahkan `localhost` dan domain produksi pada **Authorized domains**.
+3. Deploy aturan Firestore setelah memilih proyek Firebase yang benar.
 
-| Layer | Teknologi |
-|-------|-----------|
-| **UI Framework** | React 19 |
-| **Build Tool** | Vite 8 |
-| **Language** | TypeScript 7 |
-| **Styling** | Tailwind CSS 4 |
-| **Icons** | Lucide React |
-| **Animation** | Motion (Framer Motion) |
-| **Backend Runtime** | Express.js (`server.ts`) |
-| **AI** | Google Gemini Pro via `@google/genai` |
-| **Auth & Database** | Firebase (Auth + Firestore) |
-| **Document Parsing** | Mammoth (DOCX), PDF.js (PDF) |
-| **Testing** | Vitest |
-| **Package Manager** | pnpm |
+   ```bash
+   firebase deploy --only firestore:rules
+   ```
 
----
+Data pembaca dikelola secara local-first: aplikasi dapat digunakan tanpa login melalui penyimpanan lokal; login Google mengaktifkan sinkronisasi Firestore antar-perangkat. Aturan pada [`firestore.rules`](firestore.rules) membatasi data pengguna ke pemiliknya dan katalog ke admin.
 
-## 📁 Struktur Proyek
+Buku lengkap menggunakan IndexedDB dengan koleksi per akun; backup membawa gambar. Untuk cloud gambar, deploy [`storage.rules`](storage.rules) dan atur CORS bucket. VIP mengikuti entitlement dari server/admin; checkout simulasi telah dinonaktifkan. Lihat [panduan migrasi, deployment, dan batas reader](docs/reader-reliability.md).
 
-```
-evolusi-book/
-├── src/
-│   ├── App.tsx                   # Root — routing 4 view (home/collections/my-books/reader)
-│   ├── main.tsx                  # Entry point React
-│   ├── index.css                 # Global styles & theme CSS variables
-│   │
-│   ├── context/
-│   │   ├── AuthContext.tsx       # ⭐ App state utama (auth, books, annotations, goals, sync)
-│   │   └── ThemeContext.tsx      # UI theme (dark/light/sepia) & reader preferences
-│   │
-│   ├── components/               # UI components per fitur/view
-│   │   ├── Navbar.tsx            # Top navigation + search + theme toggle
-│   │   ├── HeroSection.tsx       # Landing hero
-│   │   ├── ReaderView.tsx        # Digital book reader + highlighting
-│   │   ├── AIMentorModal.tsx     # AI Gemini thinking mentor
-│   │   ├── MyBooksView.tsx       # User library, journal, goals
-│   │   ├── SettingsModal.tsx     # Theme, font, account settings
-│   │   ├── SubscriptionModal.tsx # VIP upgrade flow
-│   │   └── ...
-│   │
-│   ├── lib/
-│   │   ├── firebase.ts           # Firebase init + semua Firestore CRUD & listeners
-│   │   └── workspace.ts          # Google Workspace export (Docs/Sheets/Gmail/Chat)
-│   │
-│   ├── server/
-│   │   ├── gemini.ts             # Gemini API handler — server-only, API key tidak ke client
-│   │   ├── rateLimit.ts          # Rate limiting middleware
-│   │   └── validateMentorRequest.ts
-│   │
-│   ├── data/
-│   │   ├── books.ts              # Katalog buku (hardcoded, editable via Admin CMS)
-│   │   └── mockCommunityHighlights.ts
-│   │
-│   ├── utils/
-│   │   ├── readingGoalUtils.ts   # Kalkulasi streak, progress, goal summary
-│   │   ├── badgeUtils.ts         # Logika unlock lencana prestasi
-│   │   ├── documentParser.ts     # Parser PDF & DOCX untuk upload buku
-│   │   └── notificationUtils.ts  # Push notification & reminder logic
-│   │
-│   └── types/index.ts            # Semua TypeScript interfaces & types
-│
-├── server.ts                     # Express production server
-├── vite.config.ts                # Vite config + Gemini API dev middleware
-├── firebase-blueprint.json       # Firebase project blueprint (tidak berisi secrets)
-├── firestore.rules               # Firestore security rules
-├── .env.example                  # Template environment variables
-└── package.json
-```
-
----
-
-## 🚀 Memulai (Quick Start)
-
-### Prasyarat
-
-- **Node.js** ≥ 18
-- **pnpm** — `npm install -g pnpm`
-- Akun **Firebase** (untuk Auth + Firestore)
-- **Gemini API Key** (opsional — AI Mentor berjalan dalam mode fallback tanpa ini)
-
-### 1. Clone & Install
-
-```bash
-git clone https://github.com/RF-AI-PDM/web-Book.git
-cd web-Book
-pnpm install
-```
-
-### 2. Konfigurasi Environment
-
-Salin file contoh dan isi variabel yang dibutuhkan:
-
-```bash
-cp .env.example .env.local
-```
-
-Edit `.env.local`:
-
-```env
-# Wajib untuk AI Mentor (tanpa ini, mode fallback simulasi aktif)
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# Opsional — dipakai AI Studio runtime
-APP_URL=http://localhost:3000
-```
-
-### 3. Konfigurasi Firebase
-
-Buat file `firebase-applet-config.json` di root proyek (lihat `firebase-blueprint.json` sebagai template):
-
-```json
-{
-  "projectId": "your-project-id",
-  "appId": "your-app-id",
-  "apiKey": "your-firebase-api-key",
-  "authDomain": "your-project.firebaseapp.com",
-  "storageBucket": "your-project.firebasestorage.app",
-  "messagingSenderId": "your-sender-id"
-}
-```
-
-> ⚠️ File ini **tidak di-commit** ke git (ada di `.gitignore`) karena berisi API key.
-
-### 4. Jalankan Development Server
-
-```bash
-pnpm dev
-```
-
-Aplikasi berjalan di **[http://localhost:3000](http://localhost:3000)**
-
----
-
-## 🔧 Perintah yang Tersedia
+## Perintah
 
 | Perintah | Keterangan |
-|----------|-----------|
-| `pnpm dev` | Vite dev server (port 3000) dengan HMR |
-| `pnpm build` | Build production ke `dist/` |
-| `pnpm start` | Jalankan `server.ts` (serve hasil build) |
-| `pnpm preview` | Preview hasil build |
-| `pnpm typecheck` | `tsc --noEmit` |
-| `pnpm lint` | ESLint |
-| `pnpm test` | Jalankan test (Vitest) |
-| `pnpm check` | typecheck + lint + test |
-| `pnpm start` | Jalankan Express server untuk production |
-| `pnpm preview` | Preview hasil build production |
-| `pnpm typecheck` | Cek tipe TypeScript (`tsc --noEmit`) |
-| `pnpm lint` | Jalankan ESLint |
-| `pnpm test` | Jalankan unit test (Vitest) |
-| `pnpm check` | Jalankan typecheck + lint + test sekaligus |
+| --- | --- |
+| `pnpm dev` | Menjalankan Vite di port 3000 dengan HMR dan endpoint AI untuk pengembangan. |
+| `pnpm build` | Membuat build produksi ke `dist/`. |
+| `pnpm start` | Menjalankan Express di port 3000 untuk menyajikan `dist/` dan endpoint AI. Jalankan `pnpm build` terlebih dahulu. |
+| `pnpm preview` | Mempratinjau hasil build Vite. |
+| `pnpm typecheck` | Memeriksa tipe TypeScript tanpa membuat output. |
+| `pnpm lint` | Menjalankan ESLint. |
+| `pnpm test` | Menjalankan test Vitest sekali. |
+| `pnpm check` | Menjalankan typecheck, lint, lalu test. |
 
 ## Struktur proyek
----
 
-Lihat [Agent.md](Agent.md) untuk penjelasan lebih detail tentang arsitektur, data flow, dan diagnosis checklist.
-## 🔒 Keamanan
-
-- **API Key Gemini** tidak pernah diekspos ke client — selalu dipanggil server-side
-- **Firebase API Key** bersifat publik (desain Firebase), dilindungi oleh **Firestore Security Rules** (`firestore.rules`)
-- **Data pengguna** hanya dapat diakses oleh pemiliknya sendiri (owner-only rules per `userId`)
-- **VIP/Subscription state** disimpan di Firestore (bukan localStorage) untuk mencegah manipulasi client-side
-
----
-
-## 🗂️ Data Flow
-
-```
-User Action
-    │
-    ▼
-Component (UI)
-    │
-    ▼
-AuthContext (App State)
-    │
-    ├── localStorage (offline, instant)
-    │
-    └── Firebase Firestore (cloud sync, real-time)
-              │
-              └── Real-time Listeners → update UI otomatis
+```text
+src/
+├── components/     # Tampilan dan fitur UI
+├── context/        # State aplikasi dan preferensi tema
+├── data/           # Katalog buku bawaan
+├── lib/            # Firebase dan integrasi Google Workspace
+├── server/         # Gemini, validasi permintaan, dan rate limit
+├── utils/          # Parser dokumen, tujuan baca, badge, dan notifikasi
+└── types/          # Tipe TypeScript bersama
+server.ts           # Server Express untuk produksi
+vite.config.ts      # Konfigurasi Vite dan endpoint AI saat development
+firestore.rules     # Aturan akses Firestore
 ```
 
-- **Local-first**: App berjalan penuh tanpa login menggunakan `localStorage`
-- **Cloud-optional**: Login Google mengaktifkan sync Firestore real-time antar perangkat
-- **Merge strategy**: Saat login pertama, data cloud di-merge dengan data lokal
+## Fitur
 
----
+- Reader dengan progres per bab, highlight, anotasi, dan kustomisasi tema
+- AI Mentor berbasis Gemini melalui `POST /api/gemini/mentor`
+- Target membaca, jurnal, streak, lencana, dan pomodoro timer
+- Login Google serta sinkronisasi real-time dengan Firestore
+- Community shared highlights dan like
+- Impor buku PDF, DOCX, EPUB, TXT, dan Markdown
+- Ekspor anotasi ke Google Docs, Sheets, Gmail, dan Chat
+- Katalog buku dan pengelolaan katalog berbasis peran admin
 
-## ⚙️ Firebase Setup
+## Keamanan
 
-### 1. Aktifkan Google Sign-In
+Panggilan Gemini selalu diproses di server menggunakan `GEMINI_API_KEY`; jangan memakai variabel `VITE_` untuk secret. Firebase web API key memang tersedia di konfigurasi klien, tetapi akses data harus tetap dilindungi oleh Firebase Authentication dan aturan Firestore.
 
-Firebase Console → **Authentication** → **Sign-in Method** → Aktifkan **Google**
+## Kontribusi
 
-### 2. Tambahkan Authorized Domain
-
-Firebase Console → **Authentication** → **Settings** → **Authorized domains**
-
-Tambahkan:
-- `localhost`
-- Domain production kamu (jika sudah deploy)
-
-### 3. Deploy Firestore Rules
+Gunakan pnpm agar lockfile proyek tetap konsisten. Sebelum mengirim perubahan, jalankan:
 
 ```bash
-firebase deploy --only firestore:rules
+pnpm check
 ```
 
----
+## Lisensi
 
-## 🐛 Troubleshooting
-
-| Masalah | Solusi |
-|---------|--------|
-| `AI Mentor` jawab generik | Cek `GEMINI_API_KEY` di `.env.local` — tanpa key, fallback simulasi aktif |
-| Google Sign-In gagal (popup blocked) | Izinkan popup di browser untuk `localhost:3000` |
-| Google Sign-In gagal (unauthorized domain) | Tambahkan domain di Firebase Console → Auth → Authorized domains |
-| Data tidak sync antar perangkat | Cek `firestore.rules` dan pastikan user sudah login |
-| Build error `esbuild` | Jalankan `npm install-scripts approve esbuild` |
-| State aneh setelah login/logout | Periksa `AuthContext.tsx` → fungsi `initAuthListener` |
-| Reading streak salah | Logic ada di `src/utils/readingGoalUtils.ts` → `computeGoalProgress()` |
-| Badge tidak unlock | Periksa `src/utils/badgeUtils.ts` |
-
----
-
-## 🤝 Kontribusi
-
-1. Fork repository ini
-2. Buat branch fitur: `git checkout -b feat/nama-fitur`
-3. Commit perubahan: `git commit -m "feat: deskripsi singkat"`
-4. Push branch: `git push origin feat/nama-fitur`
-5. Buat Pull Request
-
-### Konvensi Commit
-
-```
-feat:     Fitur baru
-fix:      Perbaikan bug
-refactor: Refactoring kode
-docs:     Perubahan dokumentasi
-style:    Perubahan styling/UI
-test:     Menambah atau memperbaiki test
-chore:    Pemeliharaan (update deps, config, dll)
-```
-
----
-
-## 📄 Lisensi
-
-Didistribusikan di bawah **MIT License**. Lihat [`LICENSE`](LICENSE) untuk informasi lebih lanjut.
-
----
-
-<div align="center">
-
-Dibuat dengan ❤️ oleh **RF-AI-PDM Team**
-
-[🌐 Live Demo](https://github.com/RF-AI-PDM/web-Book) · [🐛 Report Bug](https://github.com/RF-AI-PDM/web-Book/issues) · [✨ Request Feature](https://github.com/RF-AI-PDM/web-Book/issues)
-
-</div>
+Belum ada berkas lisensi di repositori ini.

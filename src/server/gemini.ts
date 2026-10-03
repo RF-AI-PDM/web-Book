@@ -35,8 +35,18 @@ export interface MentorResponse {
 
 export async function askGeminiMentor(data: MentorRequest): Promise<MentorResponse> {
   const apiKey = process.env.GEMINI_API_KEY;
+  const isBotDongTranslation = data.userQuery.includes('Bertindak sebagai BotDong.read');
 
-  const prompt = `
+  const prompt = isBotDongTranslation ? `
+Anda adalah BotDong.read, penerjemah dokumen teknis di F15 Library.
+Buku: "${data.bookTitle}" oleh ${data.author} (${data.category})
+Halaman sumber: ${data.chapterTitle || 'PDF'}
+Teks yang dipilih pembaca:
+"${data.highlightedText || ''}"
+
+Tugas Anda:
+Terjemahkan HANYA teks yang dipilih ke Bahasa Indonesia. Pertahankan makna, istilah teknis, angka, satuan, simbol, dan struktur sumber. Jangan memberi analisis, ringkasan, pengantar, komentar, atau markdown tambahan. Jika teks sumber sudah berbahasa Indonesia, tampilkan kembali teks tersebut dengan perbaikan minimal bila diperlukan.
+` : `
 Anda adalah Mentor Buku Cerdas & Mitra Berpikir Tingkat Tinggi di F15 Library.
 Buku: "${data.bookTitle}" oleh ${data.author} (${data.category})
 ${data.chapterTitle ? `Bab Saat Ini: "${data.chapterTitle}"` : ''}
@@ -53,6 +63,12 @@ Tugas Anda:
 `;
 
   if (!apiKey) {
+    if (isBotDongTranslation) {
+      return {
+        model: 'BotDong.read · Gemini belum dikonfigurasi',
+        analysis: 'Terjemahan belum dapat diproses karena GEMINI_API_KEY belum dikonfigurasi pada server. Tambahkan API key untuk mengaktifkan BotDong.read.',
+      };
+    }
     // Elegant fallback simulation if API key is not yet set in environment
     return {
       model: 'gemini-3.1-pro-preview',
@@ -68,7 +84,9 @@ Tugas Anda:
       model: 'gemini-3.1-pro-preview',
       contents: prompt,
       config: {
-        systemInstruction: 'Anda adalah seorang pemikir strategis, cendekiawan sastra, dan mentor eksekutif tingkat dunia. Berikan wawasan mendalam, tajam, dan aplikatif.',
+        systemInstruction: isBotDongTranslation
+          ? 'Anda adalah penerjemah teknis Bahasa Indonesia yang presisi. Keluarkan hanya hasil terjemahan.'
+          : 'Anda adalah seorang pemikir strategis, cendekiawan sastra, dan mentor eksekutif tingkat dunia. Berikan wawasan mendalam, tajam, dan aplikatif.',
         thinkingConfig: {
           thinkingLevel: ThinkingLevel.HIGH,
         },

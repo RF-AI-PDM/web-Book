@@ -2,11 +2,12 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { translationRouter } from './src/server/translationRouter';
 import { askGeminiMentor } from './src/server/gemini';
 import { checkRateLimit } from './src/server/rateLimit';
 import { validateMentorRequest } from './src/server/validateMentorRequest';
 
-dotenv.config();
+dotenv.config({ path: ['.env.botdong', '.env.local', '.env'] });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,6 +16,7 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+app.use(translationRouter);
 
 // API route for Gemini 3.1 Pro Thinking Mentor
 app.post('/api/gemini/mentor', async (req, res) => {

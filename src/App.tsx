@@ -7,8 +7,6 @@ import { ContinueReadingCard } from './components/ContinueReadingCard';
 import { BookOfDayCard } from './components/BookOfDayCard';
 import { BookCarousel } from './components/BookCarousel';
 import { BookGrid } from './components/BookGrid';
-import { CollectionsView } from './components/CollectionsView';
-import { MyBooksView } from './components/MyBooksView';
 import { SettingsModal } from './components/SettingsModal';
 import { Footer } from './components/Footer';
 
@@ -16,6 +14,8 @@ import { Footer } from './components/Footer';
 // Keeps them out of the initial bundle instead of shipping every screen
 // up front.
 const ReaderView = lazy(() => import('./components/ReaderView').then(m => ({ default: m.ReaderView })));
+const CollectionsView = lazy(() => import('./components/CollectionsView').then(m => ({ default: m.CollectionsView })));
+const MyBooksView = lazy(() => import('./components/MyBooksView').then(m => ({ default: m.MyBooksView })));
 const AIMentorModal = lazy(() => import('./components/AIMentorModal').then(m => ({ default: m.AIMentorModal })));
 const WorkspaceExportModal = lazy(() => import('./components/WorkspaceExportModal').then(m => ({ default: m.WorkspaceExportModal })));
 const SubscriptionModal = lazy(() => import('./components/SubscriptionModal').then(m => ({ default: m.SubscriptionModal })));
@@ -39,7 +39,8 @@ function MainApp() {
     saveAnnotation, 
     goalProgress,
     allCatalogBooks,
-    customBooks
+    customBooks,
+    localPersistenceError
   } = useAuth();
 
   const [currentView, setCurrentView] = useState<'home' | 'collections' | 'my-books' | 'reader'>('home');
@@ -186,6 +187,7 @@ function MainApp() {
 
   return (
     <div className="min-h-screen text-zinc-100 flex flex-col justify-between selection:bg-orange-500/30 selection:text-orange-200" style={{ backgroundColor: 'var(--app-bg)', color: 'var(--app-text)' }}>
+      {localPersistenceError && <div role="alert" className="border-b border-amber-700 bg-amber-950 px-4 py-3 text-center text-sm text-amber-100">{localPersistenceError}</div>}
       {/* Top Navbar */}
       <Navbar
         currentView={currentView}
@@ -264,15 +266,18 @@ function MainApp() {
 
         {/* VIEW 2: KOLEKSI (THEMATIC SHELVES) */}
         {currentView === 'collections' && (
+          <Suspense fallback={<p role="status" className="p-8 text-center">Memuat koleksi...</p>}>
           <CollectionsView
             books={allCatalogBooks}
             onSelectBook={handleSelectBook}
             onBackToHome={() => setCurrentView('home')}
           />
+          </Suspense>
         )}
 
         {/* VIEW 3: BUKU SAYA (CLOUD LIBRARY & JOURNAL) */}
         {currentView === 'my-books' && (
+          <Suspense fallback={<p role="status" className="p-8 text-center">Memuat buku Anda...</p>}>
           <MyBooksView
             allBooks={allCatalogBooks}
             onSelectBook={handleSelectBook}
@@ -281,6 +286,7 @@ function MainApp() {
             onOpenUpload={(target) => setUploadModalState({ isOpen: true, target: target || 'personal' })}
             onOpenSubscription={(reason) => setSubscriptionModalState({ isOpen: true, reason })}
           />
+          </Suspense>
         )}
 
         {/* VIEW 4: DIGITAL BOOK READER */}

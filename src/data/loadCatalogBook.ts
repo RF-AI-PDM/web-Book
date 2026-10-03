@@ -15,6 +15,8 @@ export function loadCatalogBook(book: Book): Promise<Book> {
       const file = new File([blob], fileName, { type: book.fileType === '.pdf' ? 'application/pdf' : 'application/epub+zip' });
       const { parseUploadedDocument } = await import('../utils/documentParser');
       const parsed = await parseUploadedDocument(file);
+      const { persistDocumentAssets } = await import('../lib/documentAssetPersistence');
+      await persistDocumentAssets(book.id, parsed.assets, parsed.assetBlobs);
       if (parsed.chapters.length === 0) throw new Error('Dokumen tidak memiliki teks yang bisa dibaca.');
       return {
         ...book,

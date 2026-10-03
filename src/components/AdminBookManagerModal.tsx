@@ -33,6 +33,7 @@ export const AdminBookManagerModal: React.FC<AdminBookManagerModalProps> = ({
   } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'custom' | 'all'>('custom');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -45,12 +46,18 @@ export const AdminBookManagerModal: React.FC<AdminBookManagerModalProps> = ({
       isPremium: !book.isPremium,
       badge: !book.isPremium ? 'VIP Premium' : 'Katalog Baru'
     };
-    await updateCatalogBook(updated);
+    setErrorMessage(null);
+    try {
+      await updateCatalogBook(updated);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Katalog belum diperbarui.');
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
       <div className="relative w-full max-w-3xl bg-[#121319] border border-amber-500/30 rounded-3xl shadow-2xl overflow-hidden text-zinc-100 max-h-[92vh] flex flex-col">
+        {errorMessage && <p role="alert" className="bg-red-950/30 p-4 text-sm text-red-300">{errorMessage}</p>}
         {/* Glow Header */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500" />
 
@@ -250,7 +257,7 @@ export const AdminBookManagerModal: React.FC<AdminBookManagerModalProps> = ({
                       <button
                         onClick={() => {
                           if (confirm(`Hapus "${b.title}" dari katalog publik?`)) {
-                            deleteCatalogBook(b.id);
+                            void deleteCatalogBook(b.id).catch(error => setErrorMessage(error instanceof Error ? error.message : 'Katalog belum dihapus.'));
                           }
                         }}
                         className="p-2 text-zinc-500 hover:text-rose-400 rounded-xl bg-stone-800 hover:bg-rose-950 transition-colors cursor-pointer"

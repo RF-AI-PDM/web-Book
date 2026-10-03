@@ -27,13 +27,13 @@
 **Description:** Simpan Blob gambar di IndexedDB dan resolve menjadi object URL yang lifecycle-nya aman.
 
 **Acceptance criteria:**
-- [ ] Blob tetap tersedia setelah reload browser.
-- [ ] Metadata buku tidak menyimpan data URL/base64.
-- [ ] Object URL di-revoke setelah tidak digunakan dan delete buku membersihkan asetnya.
+- [x] Blob tetap tersedia pada instance IndexedDB baru (simulasi reload browser).
+- [x] Record aset yang tersimpan tidak menyimpan object URL sementara/data URL.
+- [x] Object URL di-revoke setelah tidak digunakan dan delete buku membersihkan asetnya.
 
 **Verification:**
-- [ ] IndexedDB round-trip dan cleanup tests lulus.
-- [ ] Manual reload/offline check menampilkan gambar.
+- [x] IndexedDB round-trip dan cleanup tests lulus.
+- [ ] Manual reload/offline check menampilkan gambar (menunggu Task 3 menyimpan aset hasil parser dan Task 4 merender image block).
 
 **Dependencies:** Task 1
 
@@ -49,13 +49,13 @@
 **Description:** Ubah traversal EPUB agar mengikuti spine, mempertahankan elemen semantic, dan mengekstrak image dengan relative path yang benar.
 
 **Acceptance criteria:**
-- [ ] Heading, paragraph, list, quote, image, alt, dan caption muncul sesuai urutan spine.
-- [ ] Path gambar nested dan URL-encoded dapat di-resolve.
-- [ ] HTML/script/style asing tidak masuk ke output block.
+- [x] Heading, paragraph, list, quote, image, alt, dan caption muncul sesuai urutan spine.
+- [x] Path gambar nested dan URL-encoded dapat di-resolve.
+- [x] HTML/script/style asing tidak masuk ke output block.
 
 **Verification:**
-- [ ] Fixture EPUB terstruktur lulus dalam unit/integration test.
-- [ ] Tidak ada duplicate paragraph dari nested container.
+- [x] Fixture EPUB terstruktur lulus dalam unit/integration test.
+- [x] Tidak ada duplicate paragraph dari nested container.
 
 **Dependencies:** Tasks 1–2
 
@@ -72,12 +72,12 @@
 **Description:** Tambahkan renderer semantik dan image component, lalu gunakan fallback adapter untuk buku lama.
 
 **Acceptance criteria:**
-- [ ] Semua jenis block MVP memiliki semantic HTML dan tampilan theme-aware.
-- [ ] Gambar lazy-load, tidak overflow, memiliki placeholder/error/caption, dan lightbox.
-- [ ] Buku lama tetap terlihat dan dapat dinavigasi.
+- [x] Semua jenis block MVP memiliki semantic HTML dan tampilan theme-aware.
+- [x] Gambar lazy-load, tidak overflow, memiliki placeholder/error/caption, dan lightbox.
+- [x] Buku lama tetap terlihat dan dapat dinavigasi.
 
 **Verification:**
-- [ ] Component tests untuk semua block dan fallback v1 lulus.
+- [x] Component tests untuk semua block dan fallback v1 lulus.
 - [ ] Manual check mobile + enam tema Reader tidak menunjukkan overflow.
 
 **Dependencies:** Tasks 1–3
