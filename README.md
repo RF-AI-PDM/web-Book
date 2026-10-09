@@ -1,6 +1,6 @@
 # Botdong Book
 
-F15 Library adalah aplikasi web berbahasa Indonesia untuk membaca intisari buku dalam sekitar 15 menit. Aplikasi ini menyediakan reader dengan highlight dan anotasi, AI Mentor Gemini, target serta streak membaca, pomodoro timer, lencana, community highlights, impor dokumen, dan ekspor ke Google Workspace.
+Botdong Book adalah aplikasi web berbahasa Indonesia untuk membaca intisari buku dalam sekitar 15 menit. Aplikasi ini menyediakan reader dengan highlight dan anotasi, AI Mentor Gemini, target serta streak membaca, pomodoro timer, lencana, community highlights, impor dokumen, dan ekspor ke Google Workspace.
 
 ## Pratinjau
 
